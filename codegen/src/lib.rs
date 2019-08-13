@@ -19,6 +19,7 @@ extern crate proc_macro;
 
 use std::fs::File;
 use std::path::PathBuf;
+use std::str::from_utf8;
 
 use libflate::deflate::Encoder;
 use proc_macro::{TokenStream};
@@ -28,13 +29,21 @@ use syn::{Error, LitStr, Result};
 
 #[proc_macro]
 pub fn deflate_file(ts: TokenStream) -> TokenStream {
-    match inner(ts) {
+    match inner(ts, false) {
         Ok(ts) => ts.into(),
         Err(err) => err.to_compile_error().into(),
     }
 }
 
-fn inner(ts: TokenStream) -> Result<impl Into<TokenStream>> {
+#[proc_macro]
+pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
+    match inner(ts, true) {
+        Ok(ts) => ts.into(),
+        Err(err) => err.to_compile_error().into(),
+    }
+}
+
+fn inner(ts: TokenStream, utf8: bool) -> Result<impl Into<TokenStream>> {
     let dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
 
     let lit = syn::parse::<LitStr>(ts)?;
@@ -51,8 +60,19 @@ fn inner(ts: TokenStream) -> Result<impl Into<TokenStream>> {
     }
 
     let mut file = File::open(target).map_err(emap)?;
+
     let mut encoder = Encoder::new(Vec::<u8>::new());
-    std::io::copy(&mut file, &mut encoder).map_err(emap)?;
+    if utf8 {
+        use std::io::Write;
+
+        let mut vec = Vec::<u8>::new();
+        std::io::copy(&mut file, &mut vec).map_err(emap)?;
+        from_utf8(&vec).map_err(emap)?;
+        encoder.write_all(&vec).map_err(emap)?;
+    } else {
+        // no need to store the raw buffer; let's avoid storing two buffers
+        std::io::copy(&mut file, &mut encoder).map_err(emap)?;
+    }
     let bytes = encoder.finish().into_result().map_err(emap)?;
 
     let bytes = bytes.into_iter().map(|byte| Literal::u8_suffixed(byte));

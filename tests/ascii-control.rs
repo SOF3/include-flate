@@ -15,12 +15,13 @@
 
 #![feature(proc_macro_hygiene)]
 
+include!("../test_util.rs");
+
 use include_flate::flate;
 
-flate!(pub static FFFE: [u8] from "assets/009f.dat");
+flate!(pub static DATA: str from "assets/ascii-printable.txt");
 
 #[test]
 fn test() {
-    println!("Tests raw");
-    assert_eq!(*FFFE, &[0x00u8, 0x9Fu8]);
+    verify_str("ascii-printable.txt", &DATA);
 }
