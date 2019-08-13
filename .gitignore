@@ -1,0 +1,7 @@
+/target
+/Cargo.lock
+**/*.rs.bk
+.*.sw[a-z]
+*.asc
+*.gpg
+*.sig
