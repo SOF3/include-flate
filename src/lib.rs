@@ -52,6 +52,9 @@ pub use lazy_static::lazy_static;
 /// # Algorithm
 /// Compression and decompression use the DEFLATE algorithm from [`libflate`][5].
 ///
+/// # Examples
+/// Below are some basic examples. For actual compiled examples, see the [`tests`][6] directory.
+///
 /// ```ignore
 /// // This declares a `static VAR_NAME: impl Deref<Vec<u8>>`
 /// flate!(static VAR_NAME: [u8] from "binary-file.dat");
@@ -73,6 +76,7 @@ pub use lazy_static::lazy_static;
 ///   [3]: https://docs.rs/lazy_static/1.3.0/lazy_static/
 ///   [4]: https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
 ///   [5]: https://docs.rs/libflate/0.1.26/libflate/
+///   [6]: https://github.com/SOF3/include-flate/tree/master/tests
 #[macro_export]
 macro_rules! flate {
     ($(#[$meta:meta])*
