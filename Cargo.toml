@@ -6,7 +6,7 @@ members = [
 
 [package]
 name = "include-flate"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["SOFe <sofe2038@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0"
