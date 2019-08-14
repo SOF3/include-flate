@@ -27,6 +27,21 @@ use proc_macro2::{Literal, Span};
 use quote::quote;
 use syn::{Error, LitStr, Result};
 
+/// `deflate_file!("file")` is equivalent to `include_bytes!("file.gz")`.
+///
+/// # Parameters
+/// This macro accepts exactly one literal parameter that refers to a path, either absolute or relative to `CARGO_MANIFEST_DIR`.
+///
+/// Note that **this is distinct from the behaviour of the builtin `include_bytes!`/`include_str!` macros** &mdash;
+/// `includle_bytes!`/`include_str!` paths are relative to the current source file, while `deflate_file!` paths are relative to
+/// `CARGO_MANIFEST_DIR`.
+///
+/// # Returns
+/// This macro expands to a `&[u8]` literal that contains the deflated form of the file.
+///
+/// # Compile errors
+/// - If the argument is not a single literal
+/// - If the referenced file does not exist or is not readable
 #[proc_macro]
 pub fn deflate_file(ts: TokenStream) -> TokenStream {
     match inner(ts, false) {
@@ -35,6 +50,11 @@ pub fn deflate_file(ts: TokenStream) -> TokenStream {
     }
 }
 
+/// This macro is identical to `deflate_file!()`, except it additionally performs UTF-8 validation.
+///
+/// # Compile errors
+/// - The compile errors in `deflate_file!`
+/// - If the file contents are not all valid UTF-8
 #[proc_macro]
 pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
     match inner(ts, true) {

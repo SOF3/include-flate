@@ -6,13 +6,15 @@ members = [
 
 [package]
 name = "include-flate"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["SOFe <sofe2038@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0"
 repository = "https://github.com/SOF3/include-flate.git"
 homepage = "https://github.com/SOF3/include-flate"
 description = "A variant of include_bytes!/include_str! with compile-time deflation and runtime lazy inflation"
+categories = ["compression", "rust-patterns", "memory-management"]
+keywords = ["lazy", "static", "compression", "deflate", "macro", "include", "assets"]
 
 [dependencies]
 include-flate-codegen = {version = "0.1.0", path = "codegen"}
