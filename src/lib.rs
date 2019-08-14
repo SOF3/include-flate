@@ -22,14 +22,14 @@ pub use lazy_static::lazy_static;
 
 #[macro_export]
 macro_rules! flate {
-    ($(pub $(($($vis:tt)+))?)? static $name:ident: [u8] from $path:literal) => {
+    ($view:vis static $name:ident: [u8] from $path:literal) => {
         $crate::lazy_static! {
-            $(pub $(($($vis)+))?)? static ref $name: ::std::vec::Vec<u8> = $crate::decode($crate::codegen::deflate_file!($path));
+            $view static ref $name: ::std::vec::Vec<u8> = $crate::decode($crate::codegen::deflate_file!($path));
         }
     };
-    ($(pub $(($($vis:tt)+))?)? static $name:ident: str from $path:literal) => {
+    ($view:vis static $name:ident: str from $path:literal) => {
         $crate::lazy_static! {
-            $(pub $(($($vis)+))?)? static ref $name: ::std::string::String = $crate::decode_string($crate::codegen::deflate_utf8_file!($path));
+            $view static ref $name: ::std::string::String = $crate::decode_string($crate::codegen::deflate_utf8_file!($path));
         }
     };
 }
