@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use std::str::from_utf8;
 
 use libflate::deflate::Encoder;
-use proc_macro::{TokenStream};
+use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span};
 use quote::quote;
 use syn::{Error, LitStr, Result};

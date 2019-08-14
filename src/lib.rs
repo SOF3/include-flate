@@ -97,12 +97,14 @@ pub fn decode(bytes: &[u8]) -> Vec<u8> {
 
     let mut dec = deflate::Decoder::new(Cursor::new(bytes));
     let mut ret = Vec::new();
-    dec.read_to_end(&mut ret).expect("Compiled DEFLATE buffer was corrupted");
+    dec.read_to_end(&mut ret)
+        .expect("Compiled DEFLATE buffer was corrupted");
     ret
 }
 
 #[doc(hidden)]
 pub fn decode_string(bytes: &[u8]) -> String {
     // We should have checked for utf8 correctness in encode_utf8_file!
-    String::from_utf8(decode(bytes)).expect("flate_str has malformed UTF-8 despite checked at compile time")
+    String::from_utf8(decode(bytes))
+        .expect("flate_str has malformed UTF-8 despite checked at compile time")
 }
