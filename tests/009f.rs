@@ -23,6 +23,5 @@ flate!(pub static DATA: [u8] from "assets/009f.dat");
 
 #[test]
 fn test() {
-    println!("Tests raw");
     verify("009f.dat", &DATA);
 }

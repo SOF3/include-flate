@@ -13,15 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![feature(proc_macro_hygiene)]
-
 include!("../test_util.rs");
 
-use include_flate::flate;
-
-flate!(pub static DATA: str from "assets/009f.dat");
+pub static DATA: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/base64.txt"));
 
 #[test]
 fn test() {
-    verify_str("009f.dat", &DATA);
+    verify_str("base64.txt", &DATA);
 }

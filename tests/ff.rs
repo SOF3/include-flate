@@ -19,9 +19,10 @@ include!("../test_util.rs");
 
 use include_flate::flate;
 
-flate!(pub static DATA: str from "assets/009f.dat");
+flate!(pub static DATA: [u8] from "assets/ff.dat");
 
 #[test]
 fn test() {
-    verify_str("009f.dat", &DATA);
+    verify("ff.dat", &DATA);
+
 }
