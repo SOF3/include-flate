@@ -2,4 +2,12 @@ language: rust
 rust: [nightly]
 cache: cargo
 env:
-  - RUSTFLAGS="-Z external-macro-backtrace"
+  global:
+    - RUSTFLAGS="-Z external-macro-backtrace"
+  matrix:
+    - RELEASE_FLAG=""
+    - RELEASE_FLAG="--release"
+script:
+  - cargo check --verbose --all $RELEASE_FLAG
+  - cargo test --verbose --all $RELEASE_FLAG
+  - cargo doc --verbose --all $RELEASE_FLAG
