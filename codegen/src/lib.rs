@@ -23,9 +23,9 @@ use std::str::from_utf8;
 
 use libflate::deflate::Encoder;
 use proc_macro::TokenStream;
-use proc_macro2::{Literal, Span};
+use proc_macro2::Span;
 use quote::quote;
-use syn::{Error, LitStr, Result};
+use syn::{Error, LitByteStr, LitStr, Result};
 
 /// `deflate_file!("file")` is equivalent to `include_bytes!("file.gz")`.
 ///
@@ -37,7 +37,7 @@ use syn::{Error, LitStr, Result};
 /// `CARGO_MANIFEST_DIR`.
 ///
 /// # Returns
-/// This macro expands to a `&[u8]` literal that contains the deflated form of the file.
+/// This macro expands to a `b"byte string"` literal that contains the deflated form of the file.
 ///
 /// # Compile errors
 /// - If the argument is not a single literal
@@ -95,8 +95,8 @@ fn inner(ts: TokenStream, utf8: bool) -> Result<impl Into<TokenStream>> {
     }
     let bytes = encoder.finish().into_result().map_err(emap)?;
 
-    let bytes = bytes.into_iter().map(|byte| Literal::u8_suffixed(byte));
-    let result = quote!(&[#(#bytes),*]);
+    let bytes = LitByteStr::new(&bytes, Span::call_site());
+    let result = quote!(#bytes);
 
     Ok(result)
 }

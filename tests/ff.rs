@@ -24,5 +24,4 @@ flate!(pub static DATA: [u8] from "assets/ff.dat");
 #[test]
 fn test() {
     verify("ff.dat", &DATA);
-
 }
