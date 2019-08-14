@@ -9,7 +9,7 @@ env:
     - RELEASE_FLAG="--release"
 
 install:
-  - "rustup component add rustfmt --toolchain $(rustup show active-toolchain | cut -d " " -f 1)"
+  - "rustup component add rustfmt --toolchain $(rustup show active-toolchain | cut -d ' ' -f 1)"
 
 script:
   - cargo check --verbose --all $RELEASE_FLAG
