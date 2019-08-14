@@ -11,3 +11,4 @@ script:
   - cargo check --verbose --all $RELEASE_FLAG
   - cargo test --verbose --all $RELEASE_FLAG
   - cargo doc --verbose --all $RELEASE_FLAG
+  - cargo fmt --all -- --check
