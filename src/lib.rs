@@ -103,7 +103,7 @@ macro_rules! flate {
         $view:vis static $name:ident: str from $path:literal) => {
         $crate::lazy_static! {
             $(#[$meta])*
-            $view:vis static ref $name: ::std::string::String = $crate::decode_string($crate::codegen::deflate_utf8_file!($path));
+            $view static ref $name: ::std::string::String = $crate::decode_string($crate::codegen::deflate_utf8_file!($path));
         }
     };
 }
