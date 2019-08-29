@@ -1,5 +1,5 @@
 [package]
-name = "include-flate-codegen"
+name = "include-flate-codegen-stable"
 version = "0.1.2"
 authors = ["SOFe <sofe2038@gmail.com>"]
 edition = "2018"
@@ -8,15 +8,6 @@ repository = "https://github.com/SOF3/include-flate.git"
 homepage = "https://github.com/SOF3/include-flate"
 description = "Macro codegen for the include-flate crate"
 
-[lib]
-proc-macro = true
-
 [dependencies]
-libflate = "0.1.26"
-proc-macro2 = "0.4.30"
-quote = "0.6.13"
-syn = {version = "0.15.44", features = ["full"]}
-proc-macro-hack = { version = "0.5.9", optional = true }
-
-[features]
-stable = ["proc-macro-hack"]
+include-flate-codegen = { version = "0.1.2", path = "../codegen", features = ["stable"] }
+proc-macro-hack = "0.5.9"

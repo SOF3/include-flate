@@ -29,7 +29,10 @@
 use libflate::deflate;
 
 /// The low-level macros used by this crate.
+#[cfg(not(feature = "stable"))]
 pub use include_flate_codegen as codegen;
+#[cfg(feature = "stable")]
+pub use include_flate_codegen_stable as codegen;
 #[doc(hidden)]
 pub use lazy_static::lazy_static;
 
