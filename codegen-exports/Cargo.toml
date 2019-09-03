@@ -1,6 +1,6 @@
 [package]
 name = "include-flate-codegen-exports"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["SOFe <sofe2038@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -9,7 +9,7 @@ homepage = "https://github.com/SOF3/include-flate"
 description = "Macro codegen for the include-flate crate"
 
 [dependencies]
-include-flate-codegen = { version = "0.1.2", path = "../codegen" }
+include-flate-codegen = { version = "0.1.3", path = "../codegen" }
 proc-macro-hack = "0.5.9"
 
 [features]
