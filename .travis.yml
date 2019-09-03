@@ -1,5 +1,5 @@
 language: rust
-rust: [nightly]
+rust: [stable, beta, nightly]
 cache: cargo
 env:
   global:
@@ -9,10 +9,11 @@ env:
     - RELEASE_FLAG="--release"
 
 install:
+  - "export FEATURE_STABLE=$(cargo --version | grep nightly >/dev/null || echo \"--features stable\")"
   - "rustup component add rustfmt --toolchain $(rustup show active-toolchain | cut -d ' ' -f 1)"
 
 script:
-  - cargo check --verbose --all $RELEASE_FLAG
-  - cargo test --verbose --all $RELEASE_FLAG
-  - cargo doc --verbose --all $RELEASE_FLAG
+  - cargo check --verbose --all $RELEASE_FLAG $FEATURE_STABLE
+  - cargo test --verbose --all $RELEASE_FLAG $FEATURE_STABLE
+  - cargo doc --verbose --all $RELEASE_FLAG $FEATURE_STABLE
   - cargo fmt --all -- --check
