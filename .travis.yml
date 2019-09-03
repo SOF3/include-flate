@@ -10,6 +10,7 @@ env:
 
 install:
   - "export FEATURE_STABLE=$(cargo --version | grep nightly >/dev/null || echo \"--features stable\")"
+  - "export RUSTFLAGS=$(cargo --version | grep nightly >/dev/null && echo \"-Z external-macro-backtrace\")"
   - "rustup component add rustfmt --toolchain $(rustup show active-toolchain | cut -d ' ' -f 1)"
 
 script:
