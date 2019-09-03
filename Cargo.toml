@@ -17,9 +17,12 @@ categories = ["compression", "rust-patterns", "memory-management"]
 keywords = ["compression", "deflate", "macro", "include", "assets"]
 
 [dependencies]
-include-flate-codegen = {version = "0.1.2", path = "codegen"}
+include-flate-codegen-exports = { version = "0.1.2", path = "codegen_exports" }
 lazy_static = "1.3"
 libflate = "0.1.26"
 
 [badges]
 travis-ci = {repository = "SOF3/include-flate"}
+
+[features]
+stable = ["include-flate-codegen-exports/stable"]

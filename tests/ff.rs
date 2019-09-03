@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![feature(proc_macro_hygiene)]
+#![cfg_attr(not(feature = "stable"), feature(proc_macro_hygiene))]
 
 include!("../test_util.rs");
 

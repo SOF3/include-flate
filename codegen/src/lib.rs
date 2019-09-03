@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![feature(proc_macro_span)]
+#![cfg_attr(not(feature = "stable"), feature(proc_macro_span))]
 
 extern crate proc_macro;
 
@@ -42,7 +42,8 @@ use syn::{Error, LitByteStr, LitStr, Result};
 /// # Compile errors
 /// - If the argument is not a single literal
 /// - If the referenced file does not exist or is not readable
-#[proc_macro]
+#[cfg_attr(feature = "stable", proc_macro_hack::proc_macro_hack)]
+#[cfg_attr(not(feature = "stable"), proc_macro)]
 pub fn deflate_file(ts: TokenStream) -> TokenStream {
     match inner(ts, false) {
         Ok(ts) => ts.into(),
@@ -55,7 +56,8 @@ pub fn deflate_file(ts: TokenStream) -> TokenStream {
 /// # Compile errors
 /// - The compile errors in `deflate_file!`
 /// - If the file contents are not all valid UTF-8
-#[proc_macro]
+#[cfg_attr(feature = "stable", proc_macro_hack::proc_macro_hack)]
+#[cfg_attr(not(feature = "stable"), proc_macro)]
 pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
     match inner(ts, true) {
         Ok(ts) => ts.into(),
