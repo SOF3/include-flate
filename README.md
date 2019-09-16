@@ -14,3 +14,11 @@ allowing smaller binary sizes.
 Nevertheless, this inevitably leads to wasting RAM to store both the compressed and decompressed data,
 which might be undesirable if the data are too large.
 An actual installer is still required if the binary involves too many resources that do not need to be kept in RAM all time.
+
+## Warning
+This library compresses included data independently.
+It is usually more effective to compress the whole output binary together (e.g. distributing `.exe.gz` )
+than to compress independently.
+In addition, compression algorithms usually produce smaller artifacts by processing the raw input together
+than by processing already-compressed output.
+`#[cfg_attr]` might come handy for conditionally using compression or direct data inclusion.
