@@ -1,9 +1,3 @@
-[workspace]
-members = [
-	".",
-	"codegen",
-]
-
 [package]
 name = "include-flate"
 version = "0.1.3"
