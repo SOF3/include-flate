@@ -13,9 +13,9 @@ proc-macro = true
 
 [dependencies]
 libflate = "0.1.26"
-proc-macro2 = "0.4.30"
-quote = "0.6.13"
-syn = {version = "0.15.44", features = ["full"]}
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "1", features = ["full"] }
 proc-macro-hack = { version = "0.5.9", optional = true }
 
 [features]
