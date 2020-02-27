@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "codegen-exports", "codegen"]
+
 [package]
 name = "include-flate"
 version = "0.1.4"
