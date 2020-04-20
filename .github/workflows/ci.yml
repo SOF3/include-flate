@@ -1,0 +1,35 @@
+name: CI
+on:
+  - push
+  - pull_request
+jobs:
+  fmt:
+    name: rustfmt check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: default
+      - run: cargo fmt --all -- --check
+  lint:
+    name: clippy lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain:
+          - stable
+          - beta
+          - nightly
+        stability:
+          - ""
+          - "--release"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{matrix.toolchain}}
+          profile: default
+          default: true
+      - name: cargo clippy
+        run: "cargo clippy --all ${{matrix.stability}} $([ ${{matrix.toolchain}} == nightly] || echo --features stable)"
