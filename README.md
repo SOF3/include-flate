@@ -1,6 +1,6 @@
 # include-flate
-[![Travis-CI](https://travis-ci.com/SOF3/include-flate.svg?branch=master)](https://travis-ci.com/SOF3/include-flate)
 [![crates.io](https://img.shields.io/crates/dv/include-flate.svg)](https://docs.rs/include-flate)
+[![docs.rs](https://docs.rs/include-flate/badge.svg)](https://sof3.github.io/include-flate/)
 
 A variant of `include_bytes!`/`include_str!` with compile-time deflation and runtime lazy inflation.
 
