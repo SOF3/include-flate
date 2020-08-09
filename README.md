@@ -1,6 +1,7 @@
 # include-flate
+[!![CI](https://github.com/SOF3/include-flate/workflows/CI/badge.svg)](https://github.com/SOF3/include-flate/actions)
 [![crates.io](https://img.shields.io/crates/dv/include-flate.svg)](https://docs.rs/include-flate)
-[![docs.rs](https://docs.rs/include-flate/badge.svg)](https://sof3.github.io/include-flate/)
+[![docs.rs](https://docs.rs/include-flate/badge.svg)](https://docs.rs/include-flate)
 
 A variant of `include_bytes!`/`include_str!` with compile-time deflation and runtime lazy inflation.
 
