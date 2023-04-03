@@ -30,7 +30,8 @@ use syn::{Error, LitByteStr, LitStr, Result};
 /// `deflate_file!("file")` is equivalent to `include_bytes!("file.gz")`.
 ///
 /// # Parameters
-/// This macro accepts exactly one literal parameter that refers to a path, either absolute or relative to `CARGO_MANIFEST_DIR`.
+/// This macro accepts exactly one literal parameter that refers to a path relative to
+/// `CARGO_MANIFEST_DIR`. Absolute paths are not supported.
 ///
 /// Note that **this is distinct from the behaviour of the builtin `include_bytes!`/`include_str!` macros** &mdash;
 /// `includle_bytes!`/`include_str!` paths are relative to the current source file, while `deflate_file!` paths are relative to
@@ -66,20 +67,20 @@ pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
 }
 
 fn inner(ts: TokenStream, utf8: bool) -> Result<impl Into<TokenStream>> {
+    fn emap<E: std::fmt::Display>(error: E) -> Error {
+        Error::new(Span::call_site(), error)
+    }
+
     let dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
 
     let lit = syn::parse::<LitStr>(ts)?;
     let path = PathBuf::from(lit.value());
 
-    let target = if path.is_relative() {
-        dir.join(path)
-    } else {
-        path
-    };
-
-    fn emap<E: std::fmt::Display>(error: E) -> Error {
-        Error::new(Span::call_site(), error)
+    if path.is_absolute() {
+        Err(emap("absolute paths are not supported"))?;
     }
+
+    let target = dir.join(path);
 
     let mut file = File::open(target).map_err(emap)?;
 

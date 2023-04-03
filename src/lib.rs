@@ -49,10 +49,10 @@ pub use lazy_static::lazy_static;
 /// - `$name` is the name of the static variable..
 /// - `$type` can be either `[u8]` or `str`. However, the actual type created would dereference
 /// into `Vec<u8>` and `String` (although they are `AsRef<[u8]>` and `AsRef<str>`) respectively.
-/// - `$file` is either an absolute path or a path relative to the current
-/// [`CARGO_MANIFEST_DIR`][4]. Note that **this is distinct from the behaviour of the builtin
-/// `include_bytes!`/`include_str!` macros** &mdash; `includle_bytes!`/`include_str!` paths are
-/// relative to the current source file, while `flate!` paths are relative to `CARGO_MANIFEST_DIR`.
+/// - `$file` is a path relative to the current [`CARGO_MANIFEST_DIR`][4]. Absolute paths are not supported.
+/// Note that **this is distinct from the behaviour of the builtin `include_bytes!`/`include_str!`
+/// macros** &mdash; `includle_bytes!`/`include_str!` paths are relative to the current source file,
+/// while `flate!` paths are relative to `CARGO_MANIFEST_DIR`.
 ///
 /// # Returns
 /// The macro expands to a [`lazy_static`][3] call, which lazily inflates the compressed bytes.
