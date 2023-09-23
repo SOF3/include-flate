@@ -26,6 +26,10 @@
 //! which might be undesirable if the data are too large.
 //! An actual installer is still required if the binary involves too many resources that do not need to be kept in RAM all time.
 
+#![cfg_attr(not(any(test, feature = "std")), no_std)]
+
+extern crate alloc;
+
 use libflate::deflate;
 
 /// The low-level macros used by this crate.
@@ -99,7 +103,7 @@ macro_rules! flate {
 
         $crate::lazy_static! {
             $(#[$meta])*
-            $(pub $(($($vis)+))?)? static ref $name: ::std::vec::Vec<u8> = $crate::decode($crate::codegen::deflate_file!($path));
+            $(pub $(($($vis)+))?)? static ref $name: $crate::codegen::Vec<u8> = $crate::decode($crate::codegen::deflate_file!($path));
         }
     };
     ($(#[$meta:meta])*
@@ -109,25 +113,25 @@ macro_rules! flate {
 
         $crate::lazy_static! {
             $(#[$meta])*
-            $(pub $(($($vis)+))?)? static ref $name: ::std::string::String = $crate::decode_string($crate::codegen::deflate_utf8_file!($path));
+            $(pub $(($($vis)+))?)? static ref $name: $crate::codegen::String = $crate::decode_string($crate::codegen::deflate_utf8_file!($path));
         }
     };
 }
 
 #[doc(hidden)]
-pub fn decode(bytes: &[u8]) -> Vec<u8> {
-    use std::io::{Cursor, Read};
+pub fn decode(bytes: &[u8]) -> codegen::Vec<u8> {
+    use core2::io::{Cursor, Read};
 
     let mut dec = deflate::Decoder::new(Cursor::new(bytes));
-    let mut ret = Vec::new();
+    let mut ret = codegen::Vec::new();
     dec.read_to_end(&mut ret)
         .expect("Compiled DEFLATE buffer was corrupted");
     ret
 }
 
 #[doc(hidden)]
-pub fn decode_string(bytes: &[u8]) -> String {
+pub fn decode_string(bytes: &[u8]) -> codegen::String {
     // We should have checked for utf8 correctness in encode_utf8_file!
-    String::from_utf8(decode(bytes))
+    codegen::String::from_utf8(decode(bytes))
         .expect("flate_str has malformed UTF-8 despite checked at compile time")
 }
