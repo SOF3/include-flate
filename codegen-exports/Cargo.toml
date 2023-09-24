@@ -14,3 +14,4 @@ proc-macro-hack = "0.5.9"
 
 [features]
 stable = ["include-flate-codegen/stable"]
+std = []

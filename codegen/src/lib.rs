@@ -24,8 +24,8 @@ use std::str::from_utf8;
 use libflate::deflate::Encoder;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::quote;
-use syn::{Error, LitByteStr, LitStr, Result};
+use quote::{quote, ToTokens};
+use syn::{Error, ExprTuple, LitByteStr, LitStr, Result};
 
 /// `deflate_file!("file")` is equivalent to `include_bytes!("file.gz")`.
 ///
@@ -67,20 +67,42 @@ pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
 }
 
 fn inner(ts: TokenStream, utf8: bool) -> Result<impl Into<TokenStream>> {
+    if let Ok(t) = syn::parse::<ExprTuple>(ts.clone()) {
+        if t.elems.len() != 2 {
+            panic!("expected a tuple of size 2 only");
+        }
+        let (lit, base) = (
+            t.elems.first().unwrap().into_token_stream(),
+            t.elems.last().unwrap().into_token_stream(),
+        );
+        let (lit, base) = (
+            syn::parse::<LitStr>(lit.into())?,
+            syn::parse::<LitStr>(base.into())?,
+        );
+        let key = quote!(#base).to_string();
+        compress_file_as_tokenstream(PathBuf::from(lit.value()), &key[1..key.len() - 1], utf8)
+    } else if let Ok(lit) = syn::parse::<LitStr>(ts) {
+        compress_file_as_tokenstream(PathBuf::from(lit.value()), "CARGO_MANIFEST_DIR", utf8)
+    } else {
+        panic!("invalid pattern")
+    }
+}
+
+fn compress_file_as_tokenstream(
+    path: PathBuf,
+    key: &str,
+    utf8: bool,
+) -> Result<impl Into<TokenStream>> {
     fn emap<E: std::fmt::Display>(error: E) -> Error {
         Error::new(Span::call_site(), error)
     }
-
-    let dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
-
-    let lit = syn::parse::<LitStr>(ts)?;
-    let path = PathBuf::from(lit.value());
 
     if path.is_absolute() {
         Err(emap("absolute paths are not supported"))?;
     }
 
-    let target = dir.join(path);
+    let dir = PathBuf::from(std::env::var(key).unwrap());
+    let target: PathBuf = dir.join(path);
 
     let mut file = File::open(target).map_err(emap)?;
 
