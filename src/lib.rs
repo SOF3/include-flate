@@ -97,6 +97,16 @@ pub use lazy_static::lazy_static;
 #[macro_export]
 macro_rules! flate {
     ($(#[$meta:meta])*
+        $(pub $(($($vis:tt)+))?)? static $name:ident: [u8] from $path:literal on $base:literal) => {
+        // HACK: workaround to make cargo auto rebuild on modification of source file
+        const _: &'static [u8] = include_bytes!(concat!(env!($base), "/", $path));
+        $crate::lazy_static! {
+            $(#[$meta])*
+            $(pub $(($($vis)+))?)? static ref $name: $crate::codegen::Vec<u8> = $crate::decode($crate::codegen::deflate_file!(($path, $base)));
+        }
+    };
+
+    ($(#[$meta:meta])*
         $(pub $(($($vis:tt)+))?)? static $name:ident: [u8] from $path:literal) => {
         // HACK: workaround to make cargo auto rebuild on modification of source file
         const _: &'static [u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path));
@@ -104,6 +114,16 @@ macro_rules! flate {
         $crate::lazy_static! {
             $(#[$meta])*
             $(pub $(($($vis)+))?)? static ref $name: $crate::codegen::Vec<u8> = $crate::decode($crate::codegen::deflate_file!($path));
+        }
+    };
+    ($(#[$meta:meta])*
+        $(pub $(($($vis:tt)+))?)? static $name:ident: str from $path:literal on $base:literal) => {
+        // HACK: workaround to make cargo auto rebuild on modification of source file
+        const _: &'static str = include_str!(concat!(env!($base), "/", $path));
+
+        $crate::lazy_static! {
+            $(#[$meta])*
+            $(pub $(($($vis)+))?)? static ref $name: $crate::codegen::String = $crate::decode_string($crate::codegen::deflate_utf8_file!(($path, $base)));
         }
     };
     ($(#[$meta:meta])*
