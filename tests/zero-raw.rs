@@ -19,5 +19,5 @@ pub static DATA: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/as
 
 #[test]
 fn test() {
-    verify("zero.dat", &DATA);
+    verify("zero.dat", DATA);
 }
