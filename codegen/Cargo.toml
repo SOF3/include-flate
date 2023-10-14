@@ -12,7 +12,7 @@ description = "Macro codegen for the include-flate crate"
 proc-macro = true
 
 [dependencies]
-libflate = "1.0.0"
+libflate = "2.0.0"
 proc-macro2 = "1.0.9"
 quote = "1.0.2"
 syn = { version = "2.0.2", features = ["full"] }
