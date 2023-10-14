@@ -19,5 +19,5 @@ pub static DATA: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/asset
 
 #[test]
 fn test() {
-    verify_str("base64.txt", &DATA);
+    verify_str("base64.txt", DATA);
 }
