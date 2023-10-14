@@ -17,9 +17,3 @@ keywords = ["compression", "deflate", "macro", "include", "assets"]
 include-flate-codegen = { version = "0.2.0", path = "codegen" }
 lazy_static = "1.3.0"
 libflate = "2.0.0"
-
-[badges]
-travis-ci = {repository = "SOF3/include-flate"}
-
-[features]
-stable = []
