@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "codegen-exports", "codegen"]
+members = [".", "codegen"]
 
 [package]
 name = "include-flate"
@@ -14,7 +14,7 @@ categories = ["compression", "rust-patterns", "memory-management"]
 keywords = ["compression", "deflate", "macro", "include", "assets"]
 
 [dependencies]
-include-flate-codegen-exports = { version = "0.2.0", path = "codegen-exports" }
+include-flate-codegen = { version = "0.2.0", path = "codegen" }
 lazy_static = "1.3.0"
 libflate = "2.0.0"
 
