@@ -13,8 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(not(feature = "stable"), feature(proc_macro_hygiene))]
-
 include!("../test_util.rs");
 
 use include_flate::flate;
