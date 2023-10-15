@@ -15,5 +15,5 @@ keywords = ["compression", "deflate", "macro", "include", "assets"]
 
 [dependencies]
 include-flate-codegen = { version = "0.2.0", path = "codegen" }
-lazy_static = "1.3.0"
+once_cell = "1.18.0"
 libflate = "2.0.0"
