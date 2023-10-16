@@ -33,4 +33,4 @@ jobs:
           profile: default
           default: true
       - name: cargo clippy
-        run: "cargo clippy --all ${{matrix.stability}} $([ ${{matrix.toolchain}} == nightly ] || echo --features stable)"
+        run: "cargo clippy --all ${{matrix.stability}}"
