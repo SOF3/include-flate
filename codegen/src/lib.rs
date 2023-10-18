@@ -87,7 +87,6 @@ fn inner(ts: TokenStream, utf8: bool) -> Result<impl Into<TokenStream>> {
 
     let mut file = File::open(target).map_err(emap)?;
     let before = file.metadata().unwrap().len();
-    println!("before size: {:#X}", before);
 
     let mut vec = Vec::<u8>::new();
     if utf8 {
