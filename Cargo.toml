@@ -16,4 +16,10 @@ keywords = ["compression", "deflate", "macro", "include", "assets"]
 [dependencies]
 include-flate-codegen = { version = "0.2.0", path = "codegen" }
 once_cell = "1.18.0"
-libflate = "2.0.0"
+libflate = { version = "2.0.0", optional = false }
+zstd = { version = "0.13.0", optional = false }
+
+[features]
+default = ["deflate"]
+deflate = ["include-flate-codegen/deflate"]
+zstd = ["include-flate-codegen/zstd"]

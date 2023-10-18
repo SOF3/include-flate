@@ -26,6 +26,12 @@
 //! which might be undesirable if the data are too large.
 //! An actual installer is still required if the binary involves too many resources that do not need to be kept in RAM all time.
 
+#[cfg(all(feature = "deflate", feature = "zstd"))]
+compile_error!("You cannot enable both `deflate` and `zstd` at the same time.");
+#[cfg(not(any(feature = "zstd", feature = "deflate")))]
+compile_error!("You must enable either the `deflate` or `zstd` feature.");
+
+#[cfg(feature = "deflate")]
 use libflate::deflate;
 
 /// The low-level macros used by this crate.
@@ -114,10 +120,22 @@ macro_rules! flate {
 pub fn decode(bytes: &[u8]) -> Vec<u8> {
     use std::io::{Cursor, Read};
 
-    let mut dec = deflate::Decoder::new(Cursor::new(bytes));
     let mut ret = Vec::new();
-    dec.read_to_end(&mut ret)
-        .expect("Compiled DEFLATE buffer was corrupted");
+
+    #[cfg(feature = "zstd")]
+    {
+        let mut dec = zstd::stream::Decoder::new(Cursor::new(bytes)).unwrap();
+        dec.read_to_end(&mut ret)
+            .expect("Compiled ZSTD buffer was corrupted");
+    }
+
+    #[cfg(feature = "deflate")]
+    {
+        let mut dec = deflate::Decoder::new(Cursor::new(bytes));
+        dec.read_to_end(&mut ret)
+            .expect("Compiled DEFLATE buffer was corrupted");
+    }
+
     ret
 }
 

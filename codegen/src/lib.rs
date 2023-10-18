@@ -13,12 +13,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(all(feature = "deflate", feature = "zstd"))]
+compile_error!("You cannot enable both `deflate` and `zstd` at the same time.");
+#[cfg(not(any(feature = "deflate", feature = "zstd")))]
+compile_error!("You must enable either the `deflate` or `zstd` feature.");
+
 extern crate proc_macro;
 
-use std::fs::File;
+use std::io::Write;
 use std::path::PathBuf;
 use std::str::from_utf8;
+use std::{fs::File, os::windows::prelude::MetadataExt};
 
+#[cfg(feature = "deflate")]
 use libflate::deflate::Encoder;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
@@ -79,20 +86,41 @@ fn inner(ts: TokenStream, utf8: bool) -> Result<impl Into<TokenStream>> {
     let target = dir.join(path);
 
     let mut file = File::open(target).map_err(emap)?;
+    let before = file.metadata().unwrap().len();
+    println!("before size: {:#X}", before);
 
-    let mut encoder = Encoder::new(Vec::<u8>::new());
+    let mut vec = Vec::<u8>::new();
     if utf8 {
-        use std::io::Write;
-
-        let mut vec = Vec::<u8>::new();
         std::io::copy(&mut file, &mut vec).map_err(emap)?;
         from_utf8(&vec).map_err(emap)?;
-        encoder.write_all(&vec).map_err(emap)?;
-    } else {
-        // no need to store the raw buffer; let's avoid storing two buffers
-        std::io::copy(&mut file, &mut encoder).map_err(emap)?;
     }
-    let bytes = encoder.finish().into_result().map_err(emap)?;
+
+    #[allow(unused_assignments)]
+    let mut bytes = Vec::new();
+
+    #[cfg(feature = "zstd")]
+    {
+        let mut encoder = zstd::stream::Encoder::new(Vec::<u8>::new(), 0).unwrap();
+        if utf8 {
+            encoder.write_all(&vec).map_err(emap)?;
+        } else {
+            // no need to store the raw buffer; let's avoid storing two buffers
+            std::io::copy(&mut file, &mut encoder).map_err(emap)?;
+        }
+        bytes = encoder.finish().unwrap();
+    }
+
+    #[cfg(feature = "deflate")]
+    {
+        let mut encoder = Encoder::new(Vec::<u8>::new());
+        if utf8 {
+            encoder.write_all(&vec).map_err(emap)?;
+        } else {
+            // no need to store the raw buffer; let's avoid storing two buffers
+            std::io::copy(&mut file, &mut encoder).map_err(emap)?;
+        }
+        bytes = encoder.finish().into_result().map_err(emap)?;
+    }
 
     let bytes = LitByteStr::new(&bytes, Span::call_site());
     let result = quote!(#bytes);
