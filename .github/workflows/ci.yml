@@ -23,8 +23,12 @@ jobs:
           - beta
           - nightly
         stability:
-          - ""
-          - "--release"
+          - ''
+          - '--release'
+        feature:
+          - default
+          - deflate
+          - zstd
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -33,4 +37,4 @@ jobs:
           profile: default
           default: true
       - name: cargo clippy
-        run: "cargo clippy --all ${{matrix.stability}}"
+        run: 'cargo clippy --all --features ${{matrix.feature}} ${{matrix.stability}}'
