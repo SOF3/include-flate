@@ -13,24 +13,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(all(feature = "deflate", feature = "zstd"))]
-compile_error!("You cannot enable both `deflate` and `zstd` at the same time.");
-#[cfg(not(any(feature = "deflate", feature = "zstd")))]
-compile_error!("You must enable either the `deflate` or `zstd` feature.");
-
 extern crate proc_macro;
 
-use std::io::Write;
+use std::fs::File;
+use std::io::{Read, Seek};
 use std::path::PathBuf;
-use std::str::from_utf8;
-use std::{fs::File, os::windows::prelude::MetadataExt};
+use std::str::{from_utf8, FromStr};
 
-#[cfg(feature = "deflate")]
-use libflate::deflate::Encoder;
+use include_flate_compress::{apply_compression, CompressionMethod};
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
-use syn::{Error, LitByteStr, LitStr, Result};
+use syn::{Error, Ident, LitByteStr};
 
 /// `deflate_file!("file")` is equivalent to `include_bytes!("file.gz")`.
 ///
@@ -69,24 +63,64 @@ pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
     }
 }
 
-fn inner(ts: TokenStream, utf8: bool) -> Result<impl Into<TokenStream>> {
+/// An arguments expected provided by the proc-macro.
+///
+/// ```ignore
+/// flate!(pub static DATA: [u8] from "assets/009f.dat"); // default, DEFLATE
+/// flate!(pub static DATA: [u8] from "assets/009f.dat" with zstd); // Use Zstd for this file spcifically
+/// flate!(pub static DATA: [u8] from "assets/009f.dat" with deflate); // Explicitly use DEFLATE.
+/// ```
+struct FlateArgs {
+    path: syn::LitStr,
+    algorithm: Option<syn::Ident>,
+}
+
+impl syn::parse::Parse for FlateArgs {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let path = input.parse()?;
+        let algorithm = input.parse().ok();
+        Ok(Self { path, algorithm })
+    }
+}
+
+struct CompressionMethodTy(CompressionMethod);
+
+impl TryFrom<Ident> for CompressionMethodTy {
+    type Error = String;
+
+    fn try_from(value: Ident) -> Result<Self, Self::Error> {
+        match value.to_string().as_str() {
+            "deflate" => Ok(CompressionMethodTy(CompressionMethod::Deflate)),
+            "zstd" => Ok(CompressionMethodTy(CompressionMethod::Zstd)),
+            _ => Err(format!("Unknown compression method: `{}`", value)),
+        }
+    }
+}
+
+fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
     fn emap<E: std::fmt::Display>(error: E) -> Error {
         Error::new(Span::call_site(), error)
     }
 
-    let dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
+    let dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").map_err(emap)?);
 
-    let lit = syn::parse::<LitStr>(ts)?;
-    let path = PathBuf::from(lit.value());
+    let args: FlateArgs = syn::parse2::<FlateArgs>(ts.into())?;
+    let path = PathBuf::from_str(&args.path.value()).map_err(emap)?;
+    let algo: CompressionMethod = match args.algorithm {
+        Some(value) => {
+            let method: Result<CompressionMethodTy, _> = value.try_into();
+            method.map_err(emap)?.0
+        }
+        None => CompressionMethod::Deflate,
+    };
 
     if path.is_absolute() {
         Err(emap("absolute paths are not supported"))?;
     }
 
-    let target = dir.join(path);
+    let target = dir.join(&path);
 
-    let mut file = File::open(target).map_err(emap)?;
-    let before = file.metadata().unwrap().len();
+    let mut file = File::open(&target).map_err(emap)?;
 
     let mut vec = Vec::<u8>::new();
     if utf8 {
@@ -94,34 +128,17 @@ fn inner(ts: TokenStream, utf8: bool) -> Result<impl Into<TokenStream>> {
         from_utf8(&vec).map_err(emap)?;
     }
 
-    #[allow(unused_assignments)]
-    let mut bytes = Vec::new();
+    let mut compressed_buffer = std::io::Cursor::new(Vec::<u8>::new());
+    let mut source: Box<dyn Read> = if utf8 {
+        Box::new(std::io::Cursor::new(vec))
+    } else {
+        file.seek(std::io::SeekFrom::Start(0)).map_err(emap)?;
+        Box::new(file)
+    };
 
-    #[cfg(feature = "zstd")]
-    {
-        let mut encoder = zstd::stream::Encoder::new(Vec::<u8>::new(), 0).unwrap();
-        if utf8 {
-            encoder.write_all(&vec).map_err(emap)?;
-        } else {
-            // no need to store the raw buffer; let's avoid storing two buffers
-            std::io::copy(&mut file, &mut encoder).map_err(emap)?;
-        }
-        bytes = encoder.finish().unwrap();
-    }
+    apply_compression(&mut source, &mut compressed_buffer, algo).map_err(emap)?;
 
-    #[cfg(feature = "deflate")]
-    {
-        let mut encoder = Encoder::new(Vec::<u8>::new());
-        if utf8 {
-            encoder.write_all(&vec).map_err(emap)?;
-        } else {
-            // no need to store the raw buffer; let's avoid storing two buffers
-            std::io::copy(&mut file, &mut encoder).map_err(emap)?;
-        }
-        bytes = encoder.finish().into_result().map_err(emap)?;
-    }
-
-    let bytes = LitByteStr::new(&bytes, Span::call_site());
+    let bytes = LitByteStr::new(&compressed_buffer.into_inner(), Span::call_site());
     let result = quote!(#bytes);
 
     Ok(result)

@@ -17,9 +17,13 @@ include!("../test_util.rs");
 
 use include_flate::flate;
 
-flate!(pub static DATA: str from "assets/chinese.txt");
+flate!(pub static DATA1: str from "assets/chinese.txt");
+flate!(pub static DATA2: str from "assets/chinese.txt" with deflate);
+flate!(pub static DATA3: str from "assets/chinese.txt" with zstd);
 
 #[test]
 fn test() {
-    verify_str("chinese.txt", &DATA);
+    verify_str("chinese.txt", &DATA1);
+    verify_str("chinese.txt", &DATA2);
+    verify_str("chinese.txt", &DATA3);
 }

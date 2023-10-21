@@ -12,14 +12,9 @@ description = "Macro codegen for the include-flate crate"
 proc-macro = true
 
 [dependencies]
-libflate = { version = "2.0.0", optional = true }
+libflate = "2.0.0"
 proc-macro2 = "1.0.9"
 quote = "1.0.2"
 syn = { version = "2.0.2", features = ["full"] }
-zstd = { version = "0.13.0", optional = true }
-
-[features]
-# default is intentional to avoid conflict from parent crate feature selection.
-default = []
-deflate = ["dep:libflate"]
-zstd = ["dep:zstd"]
+zstd = "0.13.0"
+include-flate-compress = { version = "0.1.0", path = "../compress" }
