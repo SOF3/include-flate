@@ -153,19 +153,22 @@ fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
     let bytes = LitByteStr::new(&compressed_buffer, Span::call_site());
     let result = quote!(#bytes);
 
-    let compression_ratio = calculate_compression_ratio(
-        file.metadata().unwrap().file_size(),
-        compressed_buffer.len() as u64,
-    );
+    #[cfg(not(feature = "no-compression-warnings"))]
+    {
+        let compression_ratio = calculate_compression_ratio(
+            file.metadata().unwrap().file_size(),
+            compressed_buffer.len() as u64,
+        );
 
-    if compression_ratio < 10.0f64 {
-        emit_warning!(
+        if compression_ratio < 10.0f64 {
+            emit_warning!(
             &args.path,
             "Detected low compression ratio ({:.2}%) for file {:?} with `{:?}`. Consider using other compression methods.",
             compression_ratio,
             path.display(),
             algo,
         );
+        }
     }
 
     Ok(result)

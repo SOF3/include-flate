@@ -19,3 +19,7 @@ include-flate-compress = { version = "0.1.0", path = "compress" }
 once_cell = "1.18.0"
 libflate = "2.0.0"
 zstd = "0.13.0"
+
+[features]
+default = []
+no-compression-warnings = ["include-flate-codegen/no-compression-warnings"]
