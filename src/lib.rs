@@ -142,8 +142,10 @@ pub fn decode(bytes: &[u8], algo: Option<CompressionMethodTy>) -> Vec<u8> {
     let mut source = Cursor::new(bytes);
     let mut ret = Vec::new();
 
-    apply_decompression(&mut source, &mut ret, algo)
-        .expect(&format!("Compiled `{:?}` buffer was corrupted", algo));
+    match apply_decompression(&mut source, &mut ret, algo) {
+        Ok(_) => {}
+        Err(err) => panic!("Compiled `{:?}` buffer was corrupted: {:?}", algo, err),
+    }
 
     ret
 }
