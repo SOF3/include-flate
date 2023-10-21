@@ -14,7 +14,7 @@
 // limitations under the License.
 
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 

@@ -17,12 +17,14 @@ extern crate proc_macro;
 
 use std::fs::File;
 use std::io::{Read, Seek};
+use std::os::windows::prelude::MetadataExt;
 use std::path::PathBuf;
 use std::str::{from_utf8, FromStr};
 
 use include_flate_compress::{apply_compression, CompressionMethod};
 use proc_macro::TokenStream;
 use proc_macro2::Span;
+use proc_macro_error::{emit_warning, proc_macro_error};
 use quote::quote;
 use syn::{Error, Ident, LitByteStr};
 
@@ -43,6 +45,7 @@ use syn::{Error, Ident, LitByteStr};
 /// - If the argument is not a single literal
 /// - If the referenced file does not exist or is not readable
 #[proc_macro]
+#[proc_macro_error]
 pub fn deflate_file(ts: TokenStream) -> TokenStream {
     match inner(ts, false) {
         Ok(ts) => ts.into(),
@@ -56,6 +59,7 @@ pub fn deflate_file(ts: TokenStream) -> TokenStream {
 /// - The compile errors in `deflate_file!`
 /// - If the file contents are not all valid UTF-8
 #[proc_macro]
+#[proc_macro_error]
 pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
     match inner(ts, true) {
         Ok(ts) => ts.into(),
@@ -97,6 +101,10 @@ impl TryFrom<Ident> for CompressionMethodTy {
     }
 }
 
+fn calculate_compression_ratio(original_size: u64, compressed_size: u64) -> f64 {
+    (compressed_size as f64 / original_size as f64) * 100.0
+}
+
 fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
     fn emap<E: std::fmt::Display>(error: E) -> Error {
         Error::new(Span::call_site(), error)
@@ -128,18 +136,37 @@ fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
         from_utf8(&vec).map_err(emap)?;
     }
 
-    let mut compressed_buffer = std::io::Cursor::new(Vec::<u8>::new());
-    let mut source: Box<dyn Read> = if utf8 {
-        Box::new(std::io::Cursor::new(vec))
-    } else {
-        file.seek(std::io::SeekFrom::Start(0)).map_err(emap)?;
-        Box::new(file)
-    };
+    let mut compressed_buffer = Vec::<u8>::new();
 
-    apply_compression(&mut source, &mut compressed_buffer, algo).map_err(emap)?;
+    {
+        let mut compressed_cursor = std::io::Cursor::new(&mut compressed_buffer);
+        let mut source: Box<dyn Read> = if utf8 {
+            Box::new(std::io::Cursor::new(vec))
+        } else {
+            file.seek(std::io::SeekFrom::Start(0)).map_err(emap)?;
+            Box::new(&file)
+        };
 
-    let bytes = LitByteStr::new(&compressed_buffer.into_inner(), Span::call_site());
+        apply_compression(&mut source, &mut compressed_cursor, algo).map_err(emap)?;
+    }
+
+    let bytes = LitByteStr::new(&compressed_buffer, Span::call_site());
     let result = quote!(#bytes);
+
+    let compression_ratio = calculate_compression_ratio(
+        file.metadata().unwrap().file_size(),
+        compressed_buffer.len() as u64,
+    );
+
+    if compression_ratio < 10.0f64 {
+        emit_warning!(
+            &args.path,
+            "Detected low compression ratio ({:.2}%) for file {:?} with `{:?}`. Consider using other compression methods.",
+            compression_ratio,
+            path.display(),
+            algo,
+        );
+    }
 
     Ok(result)
 }
