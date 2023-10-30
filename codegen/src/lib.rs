@@ -101,7 +101,7 @@ impl TryFrom<Ident> for CompressionMethodTy {
     }
 }
 
-fn calculate_compression_ratio(original_size: u64, compressed_size: u64) -> f64 {
+fn compression_ratio(original_size: u64, compressed_size: u64) -> f64 {
     (compressed_size as f64 / original_size as f64) * 100.0
 }
 
