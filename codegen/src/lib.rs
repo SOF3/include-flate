@@ -26,7 +26,7 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_error::{emit_warning, proc_macro_error};
 use quote::quote;
-use syn::{Error, Ident, LitByteStr};
+use syn::{Error, LitByteStr};
 
 /// `deflate_file!("file")` is equivalent to `include_bytes!("file.gz")`.
 ///
@@ -76,30 +76,39 @@ pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
 /// ```
 struct FlateArgs {
     path: syn::LitStr,
-    algorithm: Option<syn::Ident>,
+    algorithm: Option<CompressionMethodTy>,
 }
 
 impl syn::parse::Parse for FlateArgs {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let path = input.parse()?;
-        let algorithm = input.parse().ok();
+
+        let algorithm = if input.is_empty() {
+            None
+        } else {
+            let lookahead = input.lookahead1();
+            if lookahead.peek(kw::deflate) {
+                input.parse::<kw::deflate>()?;
+                Some(CompressionMethodTy(CompressionMethod::Deflate))
+            } else if lookahead.peek(kw::zstd) {
+                input.parse::<kw::zstd>()?;
+                Some(CompressionMethodTy(CompressionMethod::Zstd))
+            } else {
+                return Err(lookahead.error());
+            }
+        };
+
         Ok(Self { path, algorithm })
     }
 }
 
-struct CompressionMethodTy(CompressionMethod);
-
-impl TryFrom<Ident> for CompressionMethodTy {
-    type Error = String;
-
-    fn try_from(value: Ident) -> Result<Self, Self::Error> {
-        match value.to_string().as_str() {
-            "deflate" => Ok(CompressionMethodTy(CompressionMethod::Deflate)),
-            "zstd" => Ok(CompressionMethodTy(CompressionMethod::Zstd)),
-            _ => Err(format!("Unknown compression method: `{}`", value)),
-        }
-    }
+mod kw {
+    syn::custom_keyword!(deflate);
+    syn::custom_keyword!(zstd);
 }
+
+#[derive(Debug)]
+struct CompressionMethodTy(CompressionMethod);
 
 fn compression_ratio(original_size: u64, compressed_size: u64) -> f64 {
     (compressed_size as f64 / original_size as f64) * 100.0
@@ -112,15 +121,11 @@ fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
 
     let dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").map_err(emap)?);
 
-    let args: FlateArgs = syn::parse2::<FlateArgs>(ts.into())?;
+    let args: FlateArgs = syn::parse2::<FlateArgs>(ts.to_owned().into())?;
     let path = PathBuf::from_str(&args.path.value()).map_err(emap)?;
-    let algo: CompressionMethod = match args.algorithm {
-        Some(value) => {
-            let method: Result<CompressionMethodTy, _> = value.try_into();
-            method.map_err(emap)?.0
-        }
-        None => CompressionMethod::Deflate,
-    };
+    let algo = args
+        .algorithm
+        .unwrap_or(CompressionMethodTy(CompressionMethod::Deflate));
 
     if path.is_absolute() {
         Err(emap("absolute paths are not supported"))?;
@@ -147,7 +152,7 @@ fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
             Box::new(&file)
         };
 
-        apply_compression(&mut source, &mut compressed_cursor, algo).map_err(emap)?;
+        apply_compression(&mut source, &mut compressed_cursor, algo.0).map_err(emap)?;
     }
 
     let bytes = LitByteStr::new(&compressed_buffer, Span::call_site());
@@ -155,7 +160,7 @@ fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
 
     #[cfg(not(feature = "no-compression-warnings"))]
     {
-        let compression_ratio = calculate_compression_ratio(
+        let compression_ratio = compression_ratio(
             file.metadata().unwrap().file_size(),
             compressed_buffer.len() as u64,
         );
@@ -166,7 +171,7 @@ fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
             "Detected low compression ratio ({:.2}%) for file {:?} with `{:?}`. Consider using other compression methods.",
             compression_ratio,
             path.display(),
-            algo,
+            algo.0,
         );
         }
     }
