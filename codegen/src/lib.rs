@@ -15,9 +15,8 @@
 
 extern crate proc_macro;
 
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{Read, Seek};
-use std::os::windows::prelude::MetadataExt;
 use std::path::PathBuf;
 use std::str::{from_utf8, FromStr};
 
@@ -161,7 +160,7 @@ fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
     #[cfg(not(feature = "no-compression-warnings"))]
     {
         let compression_ratio = compression_ratio(
-            file.metadata().unwrap().file_size(),
+            fs::metadata(&target).map_err(emap)?.len(),
             compressed_buffer.len() as u64,
         );
 
