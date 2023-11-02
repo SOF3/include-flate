@@ -26,9 +26,9 @@ jobs:
           - ""
           - "--release"
         feature:
-          - default
-          - deflate
-          - zstd
+          - ""
+          - "--no-default-features --features deflate"
+          - "--no-default-features --features zstd"
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -37,4 +37,4 @@ jobs:
           profile: default
           default: true
       - name: cargo clippy
-        run: "cargo clippy --all --features ${{matrix.feature}} ${{matrix.stability}}"
+        run: "cargo clippy --all ${{matrix.feature}} ${{matrix.stability}}"
