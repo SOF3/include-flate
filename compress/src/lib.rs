@@ -81,6 +81,20 @@ impl CompressionMethod {
     }
 }
 
+#[cfg(any(feature = "deflate", feature = "zstd"))]
+impl Default for CompressionMethod {
+    fn default() -> Self {
+        #[cfg(feature = "deflate")]
+        {
+            Self::Deflate
+        }
+        #[cfg(all(not(feature = "deflate"), feature = "zstd"))]
+        {
+            Self::Zstd
+        }
+    }
+}
+
 pub enum FlateEncoder<W: Write> {
     #[cfg(feature = "deflate")]
     Deflate(DeflateEncoder<W>),
