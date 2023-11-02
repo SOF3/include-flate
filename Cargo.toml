@@ -21,5 +21,7 @@ libflate = "2.0.0"
 zstd = "0.13.0"
 
 [features]
-default = []
+default = ["deflate", "zstd"]
+deflate = ["include-flate-compress/deflate"]
+zstd = ["include-flate-compress/zstd"]
 no-compression-warnings = ["include-flate-codegen/no-compression-warnings"]

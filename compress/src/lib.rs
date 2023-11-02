@@ -13,20 +13,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(not(any(feature = "zstd", feature = "deflate")))]
+compile_error!("You must enable either the `deflate` or `zstd` feature.");
+
 use std::{
     fmt,
     io::{self, BufRead, BufReader, Read, Seek, Write},
-    str::FromStr,
 };
 
+#[cfg(feature = "deflate")]
 use libflate::deflate::Decoder as DeflateDecoder;
+#[cfg(feature = "deflate")]
 use libflate::deflate::Encoder as DeflateEncoder;
+#[cfg(feature = "zstd")]
 use zstd::Decoder as ZstdDecoder;
+#[cfg(feature = "zstd")]
 use zstd::Encoder as ZstdEncoder;
 
 #[derive(Debug)]
 pub enum FlateCompressionError {
+    #[cfg(feature = "deflate")]
     DeflateError(io::Error),
+    #[cfg(feature = "zstd")]
     ZstdError(io::Error),
     IoError(io::Error),
 }
@@ -40,7 +48,9 @@ impl From<io::Error> for FlateCompressionError {
 impl fmt::Display for FlateCompressionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            #[cfg(feature = "deflate")]
             FlateCompressionError::DeflateError(err) => write!(f, "Deflate error: {}", err),
+            #[cfg(feature = "zstd")]
             FlateCompressionError::ZstdError(err) => write!(f, "Zstd error: {}", err),
             FlateCompressionError::IoError(err) => write!(f, "I/O error: {}", err),
         }
@@ -49,7 +59,9 @@ impl fmt::Display for FlateCompressionError {
 
 #[derive(Debug, Copy, Clone)]
 pub enum CompressionMethod {
+    #[cfg(feature = "deflate")]
     Deflate,
+    #[cfg(feature = "zstd")]
     Zstd,
 }
 
@@ -57,7 +69,7 @@ impl CompressionMethod {
     pub fn encoder<'a, W: BufRead + Write + Seek + 'a>(
         &'a self,
         write: W,
-    ) -> Result<FlateEncoder<'a, W>, FlateCompressionError> {
+    ) -> Result<FlateEncoder<W>, FlateCompressionError> {
         FlateEncoder::new(*self, write)
     }
 
@@ -69,36 +81,22 @@ impl CompressionMethod {
     }
 }
 
-impl Default for CompressionMethod {
-    fn default() -> Self {
-        Self::Deflate
-    }
-}
-
-impl FromStr for CompressionMethod {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match &*s.to_lowercase() {
-            "deflate" => Ok(CompressionMethod::Deflate),
-            "zstd" => Ok(CompressionMethod::Zstd),
-            _ => Err(format!("Unknown compression method: {}", s).into()),
-        }
-    }
-}
-
-pub enum FlateEncoder<'a, W: Write + 'a> {
+pub enum FlateEncoder<W: Write> {
+    #[cfg(feature = "deflate")]
     Deflate(DeflateEncoder<W>),
-    Zstd(ZstdEncoder<'a, W>),
+    #[cfg(feature = "zstd")]
+    Zstd(ZstdEncoder<'static, W>),
 }
 
-impl<'a, W: BufRead + Write + Seek + 'a> FlateEncoder<'a, W> {
+impl<'a, W: BufRead + Write + Seek + 'a> FlateEncoder<W> {
     pub fn new(
         method: CompressionMethod,
         write: W,
-    ) -> Result<FlateEncoder<'a, W>, FlateCompressionError> {
+    ) -> Result<FlateEncoder<W>, FlateCompressionError> {
         match method {
+            #[cfg(feature = "deflate")]
             CompressionMethod::Deflate => Ok(FlateEncoder::Deflate(DeflateEncoder::new(write))),
+            #[cfg(feature = "zstd")]
             CompressionMethod::Zstd => ZstdEncoder::new(write, 0)
                 .map(FlateEncoder::Zstd)
                 .map_err(|e| FlateCompressionError::ZstdError(e)),
@@ -106,29 +104,35 @@ impl<'a, W: BufRead + Write + Seek + 'a> FlateEncoder<'a, W> {
     }
 }
 
-impl<'a, W: Write + 'a> Write for FlateEncoder<'a, W> {
+impl<'a, W: Write + 'a> Write for FlateEncoder<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         match self {
+            #[cfg(feature = "deflate")]
             FlateEncoder::Deflate(encoder) => encoder.write(buf),
+            #[cfg(feature = "zstd")]
             FlateEncoder::Zstd(encoder) => encoder.write(buf),
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
         match self {
+            #[cfg(feature = "deflate")]
             FlateEncoder::Deflate(encoder) => encoder.flush(),
+            #[cfg(feature = "zstd")]
             FlateEncoder::Zstd(encoder) => encoder.flush(),
         }
     }
 }
 
-impl<'a, W: Write + 'a> FlateEncoder<'a, W> {
+impl<'a, W: Write + 'a> FlateEncoder<W> {
     fn finish_encode(self) -> Result<W, FlateCompressionError> {
         match self {
+            #[cfg(feature = "deflate")]
             FlateEncoder::Deflate(encoder) => encoder
                 .finish()
                 .into_result()
                 .map_err(|e| FlateCompressionError::DeflateError(e)),
+            #[cfg(feature = "zstd")]
             FlateEncoder::Zstd(encoder) => encoder
                 .finish()
                 .map_err(|e| FlateCompressionError::ZstdError(e)),
@@ -141,7 +145,9 @@ pub trait ReadSeek: BufRead + Seek {}
 impl<T: BufRead + Seek> ReadSeek for T {}
 
 pub enum FlateDecoder<'a> {
+    #[cfg(feature = "deflate")]
     Deflate(DeflateDecoder<Box<dyn BufRead + 'a>>),
+    #[cfg(feature = "zstd")]
     Zstd(ZstdDecoder<'a, BufReader<Box<dyn BufRead + 'a>>>),
 }
 
@@ -151,7 +157,9 @@ impl<'a> FlateDecoder<'a> {
         read: Box<dyn BufRead + 'a>,
     ) -> Result<FlateDecoder<'a>, FlateCompressionError> {
         match method {
+            #[cfg(feature = "deflate")]
             CompressionMethod::Deflate => Ok(FlateDecoder::Deflate(DeflateDecoder::new(read))),
+            #[cfg(feature = "zstd")]
             CompressionMethod::Zstd => {
                 let decoder = ZstdDecoder::new(read)?;
                 Ok(FlateDecoder::Zstd(decoder))
@@ -163,7 +171,9 @@ impl<'a> FlateDecoder<'a> {
 impl<'a> Read for FlateDecoder<'a> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match self {
+            #[cfg(feature = "deflate")]
             FlateDecoder::Deflate(decoder) => decoder.read(buf),
+            #[cfg(feature = "zstd")]
             FlateDecoder::Zstd(decoder) => decoder.read(buf),
         }
     }
