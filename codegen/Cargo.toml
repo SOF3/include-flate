@@ -16,3 +16,10 @@ libflate = "2.0.0"
 proc-macro2 = "1.0.9"
 quote = "1.0.2"
 syn = { version = "2.0.2", features = ["full"] }
+zstd = "0.13.0"
+include-flate-compress = { version = "0.1.0", path = "../compress" }
+proc-macro-error = "1.0.4"
+
+[features]
+default = []
+no-compression-warnings = []

@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "codegen"]
+members = [".", "codegen", "compress"]
 
 [package]
 name = "include-flate"
@@ -15,5 +15,13 @@ keywords = ["compression", "deflate", "macro", "include", "assets"]
 
 [dependencies]
 include-flate-codegen = { version = "0.2.0", path = "codegen" }
+include-flate-compress = { version = "0.1.0", path = "compress" }
 once_cell = "1.18.0"
 libflate = "2.0.0"
+zstd = "0.13.0"
+
+[features]
+default = ["deflate", "zstd"]
+deflate = ["include-flate-compress/deflate"]
+zstd = ["include-flate-compress/zstd"]
+no-compression-warnings = ["include-flate-codegen/no-compression-warnings"]

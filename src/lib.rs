@@ -26,10 +26,13 @@
 //! which might be undesirable if the data are too large.
 //! An actual installer is still required if the binary involves too many resources that do not need to be kept in RAM all time.
 
-use libflate::deflate;
-
 /// The low-level macros used by this crate.
 pub use include_flate_codegen as codegen;
+use include_flate_compress::apply_decompression;
+
+#[doc(hidden)]
+pub use include_flate_compress::CompressionMethod;
+
 #[doc(hidden)]
 pub use once_cell::sync::Lazy;
 
@@ -93,37 +96,64 @@ pub use once_cell::sync::Lazy;
 #[macro_export]
 macro_rules! flate {
     ($(#[$meta:meta])*
-        $(pub $(($($vis:tt)+))?)? static $name:ident: [u8] from $path:literal) => {
+        $(pub $(($($vis:tt)+))?)? static $name:ident: [u8] from $path:literal $(with $algo:ident)?) => {
         // HACK: workaround to make cargo auto rebuild on modification of source file
         const _: &'static [u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path));
 
         $(#[$meta])*
-        $(pub $(($($vis)+))?)? static $name: $crate::Lazy<::std::vec::Vec<u8>> = $crate::Lazy::new(|| $crate::decode($crate::codegen::deflate_file!($path)));
+        $(pub $(($($vis)+))?)? static $name: $crate::Lazy<::std::vec::Vec<u8>> = $crate::Lazy::new(|| {
+            $crate::decode($crate::codegen::deflate_file!($path), None)
+        });
     };
     ($(#[$meta:meta])*
-        $(pub $(($($vis:tt)+))?)? static $name:ident: str from $path:literal) => {
+        $(pub $(($($vis:tt)+))?)? static $name:ident: str from $path:literal $(with $algo:ident)?) => {
         // HACK: workaround to make cargo auto rebuild on modification of source file
         const _: &'static str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path));
 
         $(#[$meta])*
-        $(pub $(($($vis)+))?)? static $name: $crate::Lazy<::std::string::String> = $crate::Lazy::new(|| $crate::decode_string($crate::codegen::deflate_utf8_file!($path)));
+        $(pub $(($($vis)+))?)? static $name: $crate::Lazy<::std::string::String> = $crate::Lazy::new(|| {
+            let algo = match stringify!($($algo)?){
+                "deflate" => $crate::CompressionMethod::Deflate,
+                "zstd" => $crate::CompressionMethod::Zstd,
+                _ => $crate::CompressionMethod::default(),
+            };
+            $crate::decode_string($crate::codegen::deflate_utf8_file!($path $($algo)?), Some($crate::CompressionMethodTy(algo)))
+        });
     };
 }
 
-#[doc(hidden)]
-pub fn decode(bytes: &[u8]) -> Vec<u8> {
-    use std::io::{Cursor, Read};
+#[derive(Debug)]
+pub struct CompressionMethodTy(pub CompressionMethod);
 
-    let mut dec = deflate::Decoder::new(Cursor::new(bytes));
+impl Into<CompressionMethod> for CompressionMethodTy {
+    fn into(self) -> CompressionMethod {
+        self.0
+    }
+}
+
+#[doc(hidden)]
+#[allow(private_interfaces)]
+pub fn decode(bytes: &[u8], algo: Option<CompressionMethodTy>) -> Vec<u8> {
+    use std::io::Cursor;
+
+    let algo: CompressionMethod = algo
+        .unwrap_or(CompressionMethodTy(CompressionMethod::Deflate))
+        .into();
+    let mut source = Cursor::new(bytes);
     let mut ret = Vec::new();
-    dec.read_to_end(&mut ret)
-        .expect("Compiled DEFLATE buffer was corrupted");
+
+    match apply_decompression(&mut source, &mut ret, algo) {
+        Ok(_) => {}
+        Err(err) => panic!("Compiled `{:?}` buffer was corrupted: {:?}", algo, err),
+    }
+
     ret
 }
 
 #[doc(hidden)]
-pub fn decode_string(bytes: &[u8]) -> String {
+#[allow(private_interfaces)]
+pub fn decode_string(bytes: &[u8], algo: Option<CompressionMethodTy>) -> String {
     // We should have checked for utf8 correctness in encode_utf8_file!
-    String::from_utf8(decode(bytes))
+    String::from_utf8(decode(bytes, algo))
         .expect("flate_str has malformed UTF-8 despite checked at compile time")
 }

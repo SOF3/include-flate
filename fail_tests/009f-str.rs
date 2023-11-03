@@ -18,6 +18,8 @@ include!("../test_util.rs");
 use include_flate::flate;
 
 flate!(pub static DATA: str from "assets/009f.dat");
+flate!(pub static DATA: str from "assets/009f.dat" with deflate);
+flate!(pub static DATA: str from "assets/009f.dat" with zstd);
 
 #[test]
 fn test() {
