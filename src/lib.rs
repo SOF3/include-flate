@@ -96,28 +96,42 @@ pub use once_cell::sync::Lazy;
 #[macro_export]
 macro_rules! flate {
     ($(#[$meta:meta])*
-        $(pub $(($($vis:tt)+))?)? static $name:ident: [u8] from $path:literal $(with $algo:ident)?) => {
+        $(pub $(($($vis:tt)+))?)? static $name:ident: [u8] from $path:literal $(with $algo:ident)? $(if $($threshold:tt)+)?) => {
         // HACK: workaround to make cargo auto rebuild on modification of source file
         const _: &'static [u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path));
 
         $(#[$meta])*
         $(pub $(($($vis)+))?)? static $name: $crate::Lazy<::std::vec::Vec<u8>> = $crate::Lazy::new(|| {
-            $crate::decode($crate::codegen::deflate_file!($path), None)
+            // Evaluate the condition at compile time to avoid unnecessary runtime checks
+            if $crate::codegen::deflate_if!($path $($algo)? $($($threshold)+)?) {
+                let algo = match stringify!($($algo)?){
+                    "deflate" => $crate::CompressionMethod::Deflate,
+                    "zstd" => $crate::CompressionMethod::Zstd,
+                    _ => $crate::CompressionMethod::default(),
+                };
+                $crate::decode($crate::codegen::deflate_file!($path $($algo)?), Some($crate::CompressionMethodTy(algo)))
+            } else {
+                include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path)).to_vec()
+            }
         });
     };
     ($(#[$meta:meta])*
-        $(pub $(($($vis:tt)+))?)? static $name:ident: str from $path:literal $(with $algo:ident)?) => {
+        $(pub $(($($vis:tt)+))?)? static $name:ident: str from $path:literal $(with $algo:ident)? $(if $($threshold:tt)+)?) => {
         // HACK: workaround to make cargo auto rebuild on modification of source file
         const _: &'static str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path));
 
         $(#[$meta])*
         $(pub $(($($vis)+))?)? static $name: $crate::Lazy<::std::string::String> = $crate::Lazy::new(|| {
-            let algo = match stringify!($($algo)?){
-                "deflate" => $crate::CompressionMethod::Deflate,
-                "zstd" => $crate::CompressionMethod::Zstd,
-                _ => $crate::CompressionMethod::default(),
-            };
-            $crate::decode_string($crate::codegen::deflate_utf8_file!($path $($algo)?), Some($crate::CompressionMethodTy(algo)))
+            if $crate::codegen::deflate_if!($path $($algo)? $($($threshold)+)?) {
+                let algo = match stringify!($($algo)?){
+                    "deflate" => $crate::CompressionMethod::Deflate,
+                    "zstd" => $crate::CompressionMethod::Zstd,
+                    _ => $crate::CompressionMethod::default(),
+                };
+                $crate::decode_string($crate::codegen::deflate_utf8_file!($path $($algo)?), Some($crate::CompressionMethodTy(algo)))
+            } else {
+                include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path)).to_string()
+            }
         });
     };
 }

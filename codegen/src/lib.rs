@@ -20,12 +20,30 @@ use std::io::{Read, Seek};
 use std::path::PathBuf;
 use std::str::{from_utf8, FromStr};
 
-use include_flate_compress::{apply_compression, CompressionMethod};
+use include_flate_compress::{apply_compression, compression_ratio, CompressionMethod};
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_error::{emit_warning, proc_macro_error};
 use quote::quote;
-use syn::{Error, LitByteStr};
+use syn::{Error, LitByteStr, LitInt};
+
+#[proc_macro]
+#[proc_macro_error]
+pub fn deflate_if(ts: TokenStream) -> TokenStream {
+    match deflate_if_inner(ts, false) {
+        Ok(ts) => ts.into(),
+        Err(err) => err.to_compile_error().into(),
+    }
+}
+
+#[proc_macro]
+#[proc_macro_error]
+pub fn deflate_utf8_if(ts: TokenStream) -> TokenStream {
+    match deflate_if_inner(ts, true) {
+        Ok(ts) => ts.into(),
+        Err(err) => err.to_compile_error().into(),
+    }
+}
 
 /// `deflate_file!("file")` is equivalent to `include_bytes!("file.gz")`.
 ///
@@ -46,7 +64,7 @@ use syn::{Error, LitByteStr};
 #[proc_macro]
 #[proc_macro_error]
 pub fn deflate_file(ts: TokenStream) -> TokenStream {
-    match inner(ts, false) {
+    match deflate_inner(ts, false) {
         Ok(ts) => ts.into(),
         Err(err) => err.to_compile_error().into(),
     }
@@ -60,7 +78,7 @@ pub fn deflate_file(ts: TokenStream) -> TokenStream {
 #[proc_macro]
 #[proc_macro_error]
 pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
-    match inner(ts, true) {
+    match deflate_inner(ts, true) {
         Ok(ts) => ts.into(),
         Err(err) => err.to_compile_error().into(),
     }
@@ -72,55 +90,111 @@ pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
 /// flate!(pub static DATA: [u8] from "assets/009f.dat"); // default, DEFLATE
 /// flate!(pub static DATA: [u8] from "assets/009f.dat" with zstd); // Use Zstd for this file spcifically
 /// flate!(pub static DATA: [u8] from "assets/009f.dat" with deflate); // Explicitly use DEFLATE.
+///
+/// flate!(pub static DATA: [u8] from "assets/009f.dat" if always); // Always compress regardless of compression ratio.
 /// ```
 struct FlateArgs {
     path: syn::LitStr,
     algorithm: Option<CompressionMethodTy>,
+    threshold: Option<ThresholdCondition>,
 }
 
 impl syn::parse::Parse for FlateArgs {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let path = input.parse()?;
 
-        let algorithm = if input.is_empty() {
-            None
-        } else {
+        let mut algorithm = None;
+        let mut threshold = None;
+
+        while !input.is_empty() {
             let lookahead = input.lookahead1();
-            if lookahead.peek(kw::deflate) {
-                input.parse::<kw::deflate>()?;
-                Some(CompressionMethodTy(CompressionMethod::Deflate))
-            } else if lookahead.peek(kw::zstd) {
-                input.parse::<kw::zstd>()?;
-                Some(CompressionMethodTy(CompressionMethod::Zstd))
+            if lookahead.peek(kw::deflate) || lookahead.peek(kw::zstd) {
+                algorithm = if lookahead.peek(kw::deflate) {
+                    input.parse::<kw::deflate>()?;
+                    Some(CompressionMethodTy(CompressionMethod::Deflate))
+                } else {
+                    input.parse::<kw::zstd>()?;
+                    Some(CompressionMethodTy(CompressionMethod::Zstd))
+                };
+            } else if lookahead.peek(kw::always)
+                || lookahead.peek(kw::less_than_original)
+                || (lookahead.peek(kw::less_than) && input.peek2(LitInt))
+            {
+                threshold = Some(input.parse()?);
             } else {
                 return Err(lookahead.error());
             }
-        };
+        }
 
-        Ok(Self { path, algorithm })
+        Ok(Self {
+            path,
+            algorithm,
+            threshold,
+        })
+    }
+}
+
+enum ThresholdCondition {
+    Always,
+    LessThanOriginal,
+    LessThan(u64),
+}
+
+impl syn::parse::Parse for ThresholdCondition {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let lookahead = input.lookahead1();
+        if lookahead.peek(kw::always) {
+            input.parse::<kw::always>()?;
+            Ok(Self::Always)
+        } else if lookahead.peek(kw::less_than_original) {
+            input.parse::<kw::less_than_original>()?;
+            Ok(Self::LessThanOriginal)
+        } else if lookahead.peek(kw::less_than) {
+            input.parse::<kw::less_than>()?;
+            let lit: LitInt = input.parse()?;
+            Ok(Self::LessThan(lit.base10_parse::<u64>()?))
+        } else {
+            Err(lookahead.error())
+        }
+    }
+}
+
+impl Into<u64> for ThresholdCondition {
+    fn into(self) -> u64 {
+        match self {
+            Self::Always => 0,
+            Self::LessThanOriginal => 100,
+            Self::LessThan(threshold) => threshold,
+        }
     }
 }
 
 mod kw {
+    // `deflate` is a keyword that indicates that the file should be compressed with DEFLATE.
     syn::custom_keyword!(deflate);
+    // `zstd` is a keyword that indicates that the file should be compressed with Zstd.
     syn::custom_keyword!(zstd);
+
+    // `always` is a keyword that indicates that the file should always be compressed.
+    syn::custom_keyword!(always);
+    // `less_than_original` is a keyword that indicates that the file should be compressed only if the compressed size is larger than the original size.
+    syn::custom_keyword!(less_than_original);
+    // `less_than` is a keyword that indicates that the file should be compressed only if the compression ratio is less than the given threshold.
+    // For example, `less_than 10` means that the file should be compressed only if the compressed size is less than 10% of the original size.
+    syn::custom_keyword!(less_than);
 }
 
 #[derive(Debug)]
 struct CompressionMethodTy(CompressionMethod);
 
-fn compression_ratio(original_size: u64, compressed_size: u64) -> f64 {
-    (compressed_size as f64 / original_size as f64) * 100.0
+fn emap<E: std::fmt::Display>(error: E) -> Error {
+    Error::new(Span::call_site(), error)
 }
 
-fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
-    fn emap<E: std::fmt::Display>(error: E) -> Error {
-        Error::new(Span::call_site(), error)
-    }
-
+fn deflate_if_inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
     let dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").map_err(emap)?);
 
-    let args: FlateArgs = syn::parse2::<FlateArgs>(ts.to_owned().into())?;
+    let args = syn::parse2::<FlateArgs>(ts.to_owned().into())?;
     let path = PathBuf::from_str(&args.path.value()).map_err(emap)?;
     let algo = args
         .algorithm
@@ -131,9 +205,7 @@ fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
     }
 
     let target = dir.join(&path);
-
     let mut file = File::open(&target).map_err(emap)?;
-
     let mut vec = Vec::<u8>::new();
     if utf8 {
         std::io::copy(&mut file, &mut vec).map_err(emap)?;
@@ -145,7 +217,68 @@ fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
     {
         let mut compressed_cursor = std::io::Cursor::new(&mut compressed_buffer);
         let mut source: Box<dyn Read> = if utf8 {
-            Box::new(std::io::Cursor::new(vec))
+            Box::new(std::io::Cursor::new(&vec))
+        } else {
+            file.seek(std::io::SeekFrom::Start(0)).map_err(emap)?;
+            Box::new(&file)
+        };
+
+        apply_compression(&mut source, &mut compressed_cursor, algo.0).map_err(emap)?;
+    }
+
+    let compression_ratio = compression_ratio(
+        fs::metadata(&target).map_err(emap)?.len(),
+        compressed_buffer.len() as u64,
+    );
+
+    // returns `true` if the file should be compressed, `false` otherwise.
+    match args.threshold {
+        Some(ThresholdCondition::Always) => Ok(quote!(true)),
+        Some(ThresholdCondition::LessThanOriginal) => {
+            if compressed_buffer.len() > vec.len() {
+                Ok(quote!(false))
+            } else {
+                Ok(quote!(true))
+            }
+        }
+        Some(ThresholdCondition::LessThan(threshold)) => {
+            if compression_ratio > threshold as f64 {
+                Ok(quote!(false))
+            } else {
+                Ok(quote!(true))
+            }
+        }
+        _ => Ok(quote!(true)),
+    }
+}
+
+fn deflate_inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
+    let dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").map_err(emap)?);
+
+    let args = syn::parse2::<FlateArgs>(ts.to_owned().into())?;
+    let path = PathBuf::from_str(&args.path.value()).map_err(emap)?;
+    let algo = args
+        .algorithm
+        .unwrap_or(CompressionMethodTy(CompressionMethod::Deflate));
+
+    if path.is_absolute() {
+        Err(emap("absolute paths are not supported"))?;
+    }
+
+    let target = dir.join(&path);
+    let mut file = File::open(&target).map_err(emap)?;
+    let mut vec = Vec::<u8>::new();
+    if utf8 {
+        std::io::copy(&mut file, &mut vec).map_err(emap)?;
+        from_utf8(&vec).map_err(emap)?;
+    }
+
+    let mut compressed_buffer = Vec::<u8>::new();
+
+    {
+        let mut compressed_cursor = std::io::Cursor::new(&mut compressed_buffer);
+        let mut source: Box<dyn Read> = if utf8 {
+            Box::new(std::io::Cursor::new(&vec))
         } else {
             file.seek(std::io::SeekFrom::Start(0)).map_err(emap)?;
             Box::new(&file)
@@ -157,21 +290,24 @@ fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
     let bytes = LitByteStr::new(&compressed_buffer, Span::call_site());
     let result = quote!(#bytes);
 
+    let compression_ratio = compression_ratio(
+        fs::metadata(&target).map_err(emap)?.len(),
+        compressed_buffer.len() as u64,
+    );
+
+    // Default to 10% threshold
+    let threshold: u64 = args.threshold.map_or(10, |cond| cond.into());
+
     #[cfg(not(feature = "no-compression-warnings"))]
     {
-        let compression_ratio = compression_ratio(
-            fs::metadata(&target).map_err(emap)?.len(),
-            compressed_buffer.len() as u64,
-        );
-
-        if compression_ratio < 10.0f64 {
+        if compression_ratio < threshold as f64 {
             emit_warning!(
-            &args.path,
-            "Detected low compression ratio ({:.2}%) for file {:?} with `{:?}`. Consider using other compression methods.",
-            compression_ratio,
-            path.display(),
-            algo.0,
-        );
+                &args.path,
+                "Detected low compression ratio ({:.2}%) for file {:?} with `{:?}`. Consider using other compression methods.",
+                compression_ratio,
+                path.display(),
+                algo.0,
+            );
         }
     }
 
