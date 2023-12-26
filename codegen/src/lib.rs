@@ -27,6 +27,17 @@ use proc_macro_error::{emit_warning, proc_macro_error};
 use quote::quote;
 use syn::{Error, LitByteStr, LitInt};
 
+/// This macro evaluates to `true` if the file should be compressed, `false` otherwise, at compile time.
+/// Useful for conditional compilation without any efforts to the runtime.
+///
+/// Please note that unlike the macro names suggest, this macro does **not** actually compress the file.
+///
+/// # Parameters
+/// This macro accepts custom compression methods and threshold conditions.
+///
+/// # Returns
+/// This macro expands to a `bool` literal that indicates whether the file should be compressed.
+/// If no condition is specified, this macro always returns `true`.
 #[proc_macro]
 #[proc_macro_error]
 pub fn deflate_if(ts: TokenStream) -> TokenStream {
@@ -36,6 +47,8 @@ pub fn deflate_if(ts: TokenStream) -> TokenStream {
     }
 }
 
+/// This macro is identical to `deflate_if!()`, except it additionally performs UTF-8 validation.
+/// See `deflate_if!` for more details.
 #[proc_macro]
 #[proc_macro_error]
 pub fn deflate_utf8_if(ts: TokenStream) -> TokenStream {
@@ -92,6 +105,8 @@ pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
 /// flate!(pub static DATA: [u8] from "assets/009f.dat" with deflate); // Explicitly use DEFLATE.
 ///
 /// flate!(pub static DATA: [u8] from "assets/009f.dat" if always); // Always compress regardless of compression ratio.
+/// flate!(pub static DATA: [u8] from "assets/009f.dat" if less_than_original); // Compress only if the compressed size is smaller than the original size.
+/// flate!(pub static DATA: [u8] from "assets/009f.dat" if less_than 10); // Compress only if the compression ratio is higher than 10%.
 /// ```
 struct FlateArgs {
     path: syn::LitStr,
@@ -134,9 +149,14 @@ impl syn::parse::Parse for FlateArgs {
     }
 }
 
+/// A threshold condition for compression.
 enum ThresholdCondition {
+    /// Always compress regardless of compression ratio.
+    /// This is the default behaviour.
     Always,
+    /// Compress only if the compressed size is smaller than the original size.
     LessThanOriginal,
+    /// Compress only if the compression ratio is higher than the given threshold.
     LessThan(u64),
 }
 
@@ -169,6 +189,7 @@ impl Into<u64> for ThresholdCondition {
     }
 }
 
+/// Custom keywords for the proc-macro.
 mod kw {
     // `deflate` is a keyword that indicates that the file should be compressed with DEFLATE.
     syn::custom_keyword!(deflate);
