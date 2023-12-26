@@ -122,6 +122,7 @@ macro_rules! flate {
 
         $(#[$meta])*
         $(pub $(($($vis)+))?)? static $name: $crate::Lazy<::std::string::String> = $crate::Lazy::new(|| {
+            // Evaluate the condition at compile time to avoid unnecessary runtime checks
             if $crate::codegen::deflate_if!($path $($algo)? $($($threshold)+)?) {
                 let algo = match stringify!($($algo)?){
                     "deflate" => $crate::CompressionMethod::Deflate,
