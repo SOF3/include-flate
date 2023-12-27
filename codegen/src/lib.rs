@@ -25,7 +25,7 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro_error::{emit_warning, proc_macro_error};
 use quote::quote;
-use syn::{Error, LitByteStr, LitInt};
+use syn::{Error, LitByteStr, LitInt, Token};
 
 /// This macro evaluates to `true` if the file should be compressed, `false` otherwise, at compile time.
 /// Useful for conditional compilation without any efforts to the runtime.
@@ -106,7 +106,7 @@ pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
 ///
 /// flate!(pub static DATA: [u8] from "assets/009f.dat" if always); // Always compress regardless of compression ratio.
 /// flate!(pub static DATA: [u8] from "assets/009f.dat" if less_than_original); // Compress only if the compressed size is smaller than the original size.
-/// flate!(pub static DATA: [u8] from "assets/009f.dat" if compression_ratio_more_than 10); // Compress only if the compression ratio is higher than 10%.
+/// flate!(pub static DATA: [u8] from "assets/009f.dat" if compression_ratio_more_than 10%); // Compress only if the compression ratio is higher than 10%.
 /// ```
 struct FlateArgs {
     path: syn::LitStr,
@@ -133,7 +133,9 @@ impl syn::parse::Parse for FlateArgs {
                 };
             } else if lookahead.peek(kw::always)
                 || lookahead.peek(kw::less_than_original)
-                || (lookahead.peek(kw::compression_ratio_more_than) && input.peek2(LitInt))
+                || (lookahead.peek(kw::compression_ratio_more_than)
+                    && input.peek2(syn::LitInt)
+                    && input.peek3(Token![%]))
             {
                 threshold = Some(input.parse()?);
             } else {
@@ -172,7 +174,8 @@ impl syn::parse::Parse for ThresholdCondition {
         } else if lookahead.peek(kw::compression_ratio_more_than) {
             input.parse::<kw::compression_ratio_more_than>()?;
             let lit: LitInt = input.parse()?;
-            Ok(Self::CompressionRatioMoreThan(lit.base10_parse::<u64>()?))
+            input.parse::<Token![%]>()?;
+            Ok(Self::CompressionRatioMoreThan(lit.base10_parse()?))
         } else {
             Err(lookahead.error())
         }
