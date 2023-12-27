@@ -204,7 +204,7 @@ mod kw {
     // `less_than_original` is a keyword that indicates that the file should be compressed only if the compressed size is larger than the original size.
     syn::custom_keyword!(less_than_original);
     // `compression_ratio_more_than` is a keyword that indicates that the file should be compressed only if the compression ratio is less than the given threshold.
-    // For example, `compression_ratio_more_than 10` means that the file should be compressed only if the compressed size is less than 10% of the original size.
+    // For example, `compression_ratio_more_than 10%` means that the file should be compressed only if the compressed size is less than 10% of the original size.
     syn::custom_keyword!(compression_ratio_more_than);
 }
 
