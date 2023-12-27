@@ -51,6 +51,12 @@ fn test() {
     );
 
     // The compressed data is bigger than the original data (as expected),
-    assert_eq!(deflate_if!("assets/one.txt" zstd less_than 10), false);
-    assert_eq!(deflate_if!("assets/one.txt" deflate less_than 10), false);
+    assert_eq!(
+        deflate_if!("assets/one.txt" zstd compression_ratio_more_than 10),
+        false
+    );
+    assert_eq!(
+        deflate_if!("assets/one.txt" deflate compression_ratio_more_than 10),
+        false
+    );
 }

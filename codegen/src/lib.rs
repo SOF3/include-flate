@@ -106,7 +106,7 @@ pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
 ///
 /// flate!(pub static DATA: [u8] from "assets/009f.dat" if always); // Always compress regardless of compression ratio.
 /// flate!(pub static DATA: [u8] from "assets/009f.dat" if less_than_original); // Compress only if the compressed size is smaller than the original size.
-/// flate!(pub static DATA: [u8] from "assets/009f.dat" if less_than 10); // Compress only if the compression ratio is higher than 10%.
+/// flate!(pub static DATA: [u8] from "assets/009f.dat" if compression_ratio_more_than 10); // Compress only if the compression ratio is higher than 10%.
 /// ```
 struct FlateArgs {
     path: syn::LitStr,
@@ -133,7 +133,7 @@ impl syn::parse::Parse for FlateArgs {
                 };
             } else if lookahead.peek(kw::always)
                 || lookahead.peek(kw::less_than_original)
-                || (lookahead.peek(kw::less_than) && input.peek2(LitInt))
+                || (lookahead.peek(kw::compression_ratio_more_than) && input.peek2(LitInt))
             {
                 threshold = Some(input.parse()?);
             } else {
@@ -157,7 +157,7 @@ enum ThresholdCondition {
     /// Compress only if the compressed size is smaller than the original size.
     LessThanOriginal,
     /// Compress only if the compression ratio is higher than the given threshold.
-    LessThan(u64),
+    CompressionRatioMoreThan(u64),
 }
 
 impl syn::parse::Parse for ThresholdCondition {
@@ -169,10 +169,10 @@ impl syn::parse::Parse for ThresholdCondition {
         } else if lookahead.peek(kw::less_than_original) {
             input.parse::<kw::less_than_original>()?;
             Ok(Self::LessThanOriginal)
-        } else if lookahead.peek(kw::less_than) {
-            input.parse::<kw::less_than>()?;
+        } else if lookahead.peek(kw::compression_ratio_more_than) {
+            input.parse::<kw::compression_ratio_more_than>()?;
             let lit: LitInt = input.parse()?;
-            Ok(Self::LessThan(lit.base10_parse::<u64>()?))
+            Ok(Self::CompressionRatioMoreThan(lit.base10_parse::<u64>()?))
         } else {
             Err(lookahead.error())
         }
@@ -184,7 +184,7 @@ impl Into<u64> for ThresholdCondition {
         match self {
             Self::Always => 0,
             Self::LessThanOriginal => 100,
-            Self::LessThan(threshold) => threshold,
+            Self::CompressionRatioMoreThan(threshold) => threshold,
         }
     }
 }
@@ -200,9 +200,9 @@ mod kw {
     syn::custom_keyword!(always);
     // `less_than_original` is a keyword that indicates that the file should be compressed only if the compressed size is larger than the original size.
     syn::custom_keyword!(less_than_original);
-    // `less_than` is a keyword that indicates that the file should be compressed only if the compression ratio is less than the given threshold.
-    // For example, `less_than 10` means that the file should be compressed only if the compressed size is less than 10% of the original size.
-    syn::custom_keyword!(less_than);
+    // `compression_ratio_more_than` is a keyword that indicates that the file should be compressed only if the compression ratio is less than the given threshold.
+    // For example, `compression_ratio_more_than 10` means that the file should be compressed only if the compressed size is less than 10% of the original size.
+    syn::custom_keyword!(compression_ratio_more_than);
 }
 
 #[derive(Debug)]
@@ -262,7 +262,7 @@ fn deflate_if_inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenS
                 Ok(quote!(true))
             }
         }
-        Some(ThresholdCondition::LessThan(threshold)) => {
+        Some(ThresholdCondition::CompressionRatioMoreThan(threshold)) => {
             if compression_ratio > threshold as f64 {
                 Ok(quote!(false))
             } else {

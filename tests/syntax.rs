@@ -17,16 +17,16 @@ use include_flate::flate;
 
 flate!(pub static DATA1: [u8] from "assets/random.dat" with zstd if always);
 flate!(pub static DATA2: [u8] from "assets/random.dat" with deflate if less_than_original);
-flate!(pub static DATA3: [u8] from "assets/random.dat" with deflate if less_than 0);
+flate!(pub static DATA3: [u8] from "assets/random.dat" with deflate if compression_ratio_more_than 0);
 
 flate!(pub static DATA4: [u8] from "assets/random.dat" if always);
 flate!(pub static DATA5: [u8] from "assets/random.dat" if less_than_original);
-flate!(pub static DATA6: [u8] from "assets/random.dat" if less_than 0);
+flate!(pub static DATA6: [u8] from "assets/random.dat" if compression_ratio_more_than 0);
 
 flate!(pub static DATA7: str from "assets/chinese.txt" with zstd if always);
 flate!(pub static DATA8: str from "assets/chinese.txt" with deflate if less_than_original);
-flate!(pub static DATA9: str from "assets/chinese.txt" with deflate if less_than 0);
+flate!(pub static DATA9: str from "assets/chinese.txt" with deflate if compression_ratio_more_than 0);
 
 flate!(pub static DATA10: str from "assets/chinese.txt" if always);
 flate!(pub static DATA11: str from "assets/chinese.txt" if less_than_original);
-flate!(pub static DATA12: str from "assets/chinese.txt" if less_than 0);
+flate!(pub static DATA12: str from "assets/chinese.txt" if compression_ratio_more_than 0);
