@@ -220,3 +220,7 @@ where
     io::copy(&mut decoder, writer)?;
     Ok(())
 }
+
+pub fn compression_ratio(original_size: u64, compressed_size: u64) -> f64 {
+    (compressed_size as f64 / original_size as f64) * 100.0
+}
