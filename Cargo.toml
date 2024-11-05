@@ -12,6 +12,7 @@ homepage = "https://github.com/SOF3/include-flate"
 description = "A variant of include_bytes!/include_str! with compile-time deflation and runtime lazy inflation"
 categories = ["compression", "rust-patterns", "memory-management"]
 keywords = ["compression", "deflate", "macro", "include", "assets"]
+include = ["/src", "/LICENSE", "/README.md"]
 
 [dependencies]
 include-flate-codegen = { version = "0.3.0", path = "codegen" }
