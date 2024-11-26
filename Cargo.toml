@@ -26,3 +26,6 @@ default = ["deflate", "zstd"]
 deflate = ["include-flate-compress/deflate"]
 zstd = ["include-flate-compress/zstd"]
 no-compression-warnings = ["include-flate-codegen/no-compression-warnings"]
+
+[[example]]
+name = "flate"

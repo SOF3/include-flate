@@ -70,3 +70,16 @@ pub fn verify_str(name: &str, data: &str) {
         data
     );
 }
+
+/// Decompress with the provided method and verify the result
+pub fn verify_with(name: &str, compressed_data: &[u8], method: CompressionMethod) {
+    let mut decompressed_buffer = Vec::new();
+    {
+        let mut compressed_cursor = std::io::Cursor::new(compressed_data);
+        let mut decompressed_cursor = std::io::Cursor::new(&mut decompressed_buffer);
+        apply_decompression(&mut compressed_cursor, &mut decompressed_cursor, method).unwrap();
+        decompressed_cursor.seek(SeekFrom::Start(0)).unwrap(); // Reset cursor position
+    }
+    assert_ne!(compressed_data, decompressed_buffer.as_slice());
+    assert_eq!(read_file(name), decompressed_buffer.as_slice());
+}
