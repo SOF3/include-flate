@@ -33,9 +33,6 @@ use include_flate_compress::apply_decompression;
 #[doc(hidden)]
 pub use include_flate_compress::CompressionMethod;
 
-#[doc(hidden)]
-pub use once_cell::sync::Lazy;
-
 /// This macro is like [`include_bytes!`][1] or [`include_str!`][2], but compresses at compile time
 /// and lazily decompresses at runtime.
 ///
@@ -101,7 +98,7 @@ macro_rules! flate {
         const _: &'static [u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path));
 
         $(#[$meta])*
-        $(pub $(($($vis)+))?)? static $name: $crate::Lazy<::std::vec::Vec<u8>> = $crate::Lazy::new(|| {
+        $(pub $(($($vis)+))?)? static $name: ::std::sync::LazyLock<::std::vec::Vec<u8>> = ::std::sync::LazyLock::new(|| {
             $crate::decode($crate::codegen::deflate_file!($path), None)
         });
     };
@@ -111,7 +108,7 @@ macro_rules! flate {
         const _: &'static str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path));
 
         $(#[$meta])*
-        $(pub $(($($vis)+))?)? static $name: $crate::Lazy<::std::string::String> = $crate::Lazy::new(|| {
+        $(pub $(($($vis)+))?)? static $name: ::std::sync::LazyLock<::std::string::String> = ::std::sync::LazyLock::new(|| {
             let algo = match stringify!($($algo)?){
                 "deflate" => $crate::CompressionMethod::Deflate,
                 "zstd" => $crate::CompressionMethod::Zstd,

@@ -29,7 +29,6 @@ include = ["/src", "/LICENSE", "/README.md"]
 [dependencies]
 include-flate-codegen = { version = "0.3.0", path = "codegen" }
 include-flate-compress = { version = "0.3.0", path = "compress" }
-once_cell = "1.18.0"
 libflate = { workspace = true }
 zstd = { workspace = true }
 
