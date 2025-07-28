@@ -113,7 +113,7 @@ impl<'a, W: BufRead + Write + Seek + 'a> FlateEncoder<W> {
             #[cfg(feature = "zstd")]
             CompressionMethod::Zstd => ZstdEncoder::new(write, 0)
                 .map(FlateEncoder::Zstd)
-                .map_err(|e| FlateCompressionError::ZstdError(e)),
+                .map_err(FlateCompressionError::ZstdError),
         }
     }
 }
@@ -145,11 +145,11 @@ impl<'a, W: Write + 'a> FlateEncoder<W> {
             FlateEncoder::Deflate(encoder) => encoder
                 .finish()
                 .into_result()
-                .map_err(|e| FlateCompressionError::DeflateError(e)),
+                .map_err(FlateCompressionError::DeflateError),
             #[cfg(feature = "zstd")]
-            FlateEncoder::Zstd(encoder) => encoder
-                .finish()
-                .map_err(|e| FlateCompressionError::ZstdError(e)),
+            FlateEncoder::Zstd(encoder) => {
+                encoder.finish().map_err(FlateCompressionError::ZstdError)
+            }
         }
     }
 }
