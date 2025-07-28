@@ -18,12 +18,12 @@ extern crate proc_macro;
 use std::fs::{self, File};
 use std::io::{Read, Seek};
 use std::path::PathBuf;
-use std::str::{from_utf8, FromStr};
+use std::str::{FromStr, from_utf8};
 
-use include_flate_compress::{apply_compression, CompressionMethod};
+use include_flate_compress::{CompressionMethod, apply_compression};
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 use proc_macro_error::{emit_warning, proc_macro_error};
+use proc_macro2::Span;
 use quote::quote;
 use syn::{Error, LitByteStr};
 
@@ -166,12 +166,12 @@ fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
 
         if compression_ratio < 10.0f64 {
             emit_warning!(
-            &args.path,
-            "Detected low compression ratio ({:.2}%) for file {:?} with `{:?}`. Consider using other compression methods.",
-            compression_ratio,
-            path.display(),
-            algo.0,
-        );
+                &args.path,
+                "Detected low compression ratio ({:.2}%) for file {:?} with `{:?}`. Consider using other compression methods.",
+                compression_ratio,
+                path.display(),
+                algo.0,
+            );
         }
     }
 
