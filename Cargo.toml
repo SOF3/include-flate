@@ -1,14 +1,26 @@
 [workspace]
 members = [".", "codegen", "compress"]
 
-[package]
-name = "include-flate"
+[workspace.package]
 version = "0.3.0"
 authors = ["SOFe <sofe2038@gmail.com>"]
-edition = "2021"
-license = "Apache-2.0"
+edition = "2024"
 repository = "https://github.com/SOF3/include-flate.git"
 homepage = "https://github.com/SOF3/include-flate"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+libflate = "2.1.0"
+zstd = "0.13.3"
+
+[package]
+name = "include-flate"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 description = "A variant of include_bytes!/include_str! with compile-time deflation and runtime lazy inflation"
 categories = ["compression", "rust-patterns", "memory-management"]
 keywords = ["compression", "deflate", "macro", "include", "assets"]
@@ -17,9 +29,8 @@ include = ["/src", "/LICENSE", "/README.md"]
 [dependencies]
 include-flate-codegen = { version = "0.3.0", path = "codegen" }
 include-flate-compress = { version = "0.3.0", path = "compress" }
-once_cell = "1.18.0"
-libflate = "2.0.0"
-zstd = "0.13.0"
+libflate = { workspace = true }
+zstd = { workspace = true }
 
 [features]
 default = ["deflate", "zstd"]

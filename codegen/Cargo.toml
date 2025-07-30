@@ -1,22 +1,22 @@
 [package]
 name = "include-flate-codegen"
-version = "0.3.0"
-authors = ["SOFe <sofe2038@gmail.com>"]
-edition = "2021"
-license = "Apache-2.0"
-repository = "https://github.com/SOF3/include-flate.git"
-homepage = "https://github.com/SOF3/include-flate"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 description = "Macro codegen for the include-flate crate"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-libflate = "2.0.0"
-proc-macro2 = "1.0.9"
-quote = "1.0.2"
-syn = { version = "2.0.2", features = ["full"] }
-zstd = "0.13.0"
+libflate = { workspace = true }
+proc-macro2 = "1.0.95"
+quote = "1.0.40"
+syn = { version = "2.0.104", features = ["full"] }
+zstd = { workspace = true }
 include-flate-compress = { version = "0.3.0", path = "../compress" }
 proc-macro-error = "1.0.4"
 
