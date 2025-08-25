@@ -17,7 +17,7 @@ proc-macro2 = "1.0.95"
 quote = "1.0.40"
 syn = { version = "2.0.104", features = ["full"] }
 zstd = { workspace = true }
-include-flate-compress = { version = "0.3.0", path = "../compress" }
+include-flate-compress = { version = "0.3.1", path = "../compress" }
 proc-macro-error = "1.0.4"
 
 [features]

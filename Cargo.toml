@@ -2,7 +2,7 @@
 members = [".", "codegen", "compress"]
 
 [workspace.package]
-version = "0.3.0"
+version = "0.3.1"
 authors = ["SOFe <sofe2038@gmail.com>"]
 edition = "2024"
 repository = "https://github.com/SOF3/include-flate.git"
@@ -27,8 +27,8 @@ keywords = ["compression", "deflate", "macro", "include", "assets"]
 include = ["/src", "/LICENSE", "/README.md"]
 
 [dependencies]
-include-flate-codegen = { version = "0.3.0", path = "codegen" }
-include-flate-compress = { version = "0.3.0", path = "compress" }
+include-flate-codegen = { version = "0.3.1", path = "codegen" }
+include-flate-compress = { version = "0.3.1", path = "compress" }
 libflate = { workspace = true }
 zstd = { workspace = true }
 
