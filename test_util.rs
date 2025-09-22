@@ -70,3 +70,29 @@ pub fn verify_str(name: &str, data: &str) {
         data
     );
 }
+
+pub fn verify_iflate<P: AsRef<Path>>(name: P, algo: &str, iflate: &include_flate::IFlate) {
+    use libflate::deflate::Encoder as DeflateEncoder;
+    use zstd::Encoder as ZstdEncoder;
+    use std::io::Write;
+
+    let fraw = read_file(name);
+    let mut fcompressed = Vec::new();
+    assert_eq!(iflate.algo().as_str(), algo);
+    match iflate.algo().as_str() {
+        "deflate" => {
+            let mut deflate_encoder = DeflateEncoder::new(&mut fcompressed);
+            deflate_encoder.write_all(&fraw).unwrap();
+            deflate_encoder.flush().unwrap();
+            deflate_encoder.finish().unwrap();
+        },
+        "zstd" => {
+            let mut zstd_encoder = ZstdEncoder::new(&mut fcompressed, 0).unwrap();
+            zstd_encoder.write_all(&fraw).unwrap();
+            zstd_encoder.flush().unwrap();
+            zstd_encoder.finish().unwrap();
+        }
+        _ => panic!("unk algo"),
+    }
+    assert_eq!(&iflate.compressed(), &fcompressed);
+}

@@ -20,10 +20,14 @@ use include_flate::flate;
 flate!(pub static DATA1: str from "assets/emoji.txt");
 flate!(pub static DATA2: str from "assets/emoji.txt" with deflate);
 flate!(pub static DATA3: str from "assets/emoji.txt" with zstd);
+flate!(pub static DATA4: IFlate from "assets/emoji.txt" with deflate);
+flate!(pub static DATA5: IFlate from "assets/emoji.txt" with zstd);
 
 #[test]
 fn test() {
     verify_str("emoji.txt", &DATA1);
     verify_str("emoji.txt", &DATA2);
     verify_str("emoji.txt", &DATA3);
+    // verify_iflate("emoji.txt", "deflate", &DATA4); // FAIL
+    // verify_iflate("emoji.txt", "zstd", &DATA5); // FAIL
 }

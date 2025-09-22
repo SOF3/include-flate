@@ -109,14 +109,55 @@ macro_rules! flate {
 
         $(#[$meta])*
         $(pub $(($($vis)+))?)? static $name: ::std::sync::LazyLock<::std::string::String> = ::std::sync::LazyLock::new(|| {
-            let algo = match stringify!($($algo)?){
-                "deflate" => $crate::CompressionMethod::Deflate,
-                "zstd" => $crate::CompressionMethod::Zstd,
-                _ => $crate::CompressionMethod::default(),
-            };
+            use std::str::FromStr;
+
+            #[allow(clippy::unwrap_used, reason = "Infallible")]
+            let algo = $crate::CompressionMethod::from_str(stringify!($($algo)?)).unwrap();
             $crate::decode_string($crate::codegen::deflate_utf8_file!($path $($algo)?), Some($crate::CompressionMethodTy(algo)))
         });
     };
+    ($(#[$meta:meta])*
+        $(pub $(($($vis:tt)+))?)? static $name:ident: IFlate from $path:literal $(with $algo:ident)?) => {
+        // HACK: workaround to make cargo auto rebuild on modification of source file
+        const _: &'static [u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path));
+
+        $(#[$meta])*
+        $(pub $(($($vis)+))?)? static $name: ::std::sync::LazyLock<$crate::IFlate> = ::std::sync::LazyLock::new(|| {
+            use std::str::FromStr;
+
+            #[allow(clippy::unwrap_used, reason = "Infallible")]
+            let algo = $crate::CompressionMethod::from_str(stringify!($($algo)?)).unwrap();
+            let compressed = $crate::codegen::deflate_file!($path $($algo)?).to_vec();
+            $crate::IFlate {
+                compressed,
+                algo
+            }
+        });
+    };
+}
+
+#[derive(Debug)]
+pub struct IFlate {
+    pub compressed: Vec<u8>,
+    pub algo: CompressionMethod,
+}
+
+impl IFlate {
+    pub fn compressed(&self) -> &[u8] {
+        &self.compressed
+    }
+
+    pub fn decoded(&self) -> Vec<u8> {
+        decode(&self.compressed, Some(CompressionMethodTy(self.algo)))
+    }
+
+    pub fn decode_string(&self) -> Result<String, std::string::FromUtf8Error> {
+        String::from_utf8(self.decoded())
+    }
+
+    pub fn algo(&self) -> String {
+        self.algo.to_string()
+    }
 }
 
 #[derive(Debug)]

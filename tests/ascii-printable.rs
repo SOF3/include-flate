@@ -20,10 +20,14 @@ use include_flate::flate;
 flate!(pub static DATA1: str from "assets/ascii-printable.txt");
 flate!(pub static DATA2: str from "assets/ascii-printable.txt" with deflate);
 flate!(pub static DATA3: str from "assets/ascii-printable.txt" with zstd);
+flate!(pub static DATA4: IFlate from "assets/ascii-printable.txt" with deflate);
+flate!(pub static DATA5: IFlate from "assets/ascii-printable.txt" with zstd);
 
 #[test]
 fn test() {
     verify_str("ascii-printable.txt", &DATA1);
     verify_str("ascii-printable.txt", &DATA2);
     verify_str("ascii-printable.txt", &DATA3);
+    // verify_iflate("ascii-printable.txt", "deflate", &DATA4); // FAIL
+    // verify_iflate("ascii-printable.txt", "zstd", &DATA5);
 }

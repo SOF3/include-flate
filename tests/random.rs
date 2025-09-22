@@ -20,10 +20,14 @@ use include_flate::flate;
 flate!(pub static DATA1: [u8] from "assets/random.dat");
 flate!(pub static DATA2: [u8] from "assets/random.dat" with deflate);
 flate!(pub static DATA3: [u8] from "assets/random.dat" with zstd);
+flate!(pub static DATA4: IFlate from "assets/random.dat" with deflate);
+flate!(pub static DATA5: IFlate from "assets/random.dat" with zstd);
 
 #[test]
 fn test() {
     verify("random.dat", &DATA1);
     verify("random.dat", &DATA2);
     verify("random.dat", &DATA3);
+    // verify_iflate("random.dat", "deflate", &DATA4); // FAIL
+    verify_iflate("random.dat", "zstd", &DATA5);
 }

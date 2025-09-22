@@ -95,6 +95,31 @@ impl Default for CompressionMethod {
     }
 }
 
+impl std::str::FromStr for CompressionMethod {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            #[cfg(feature = "deflate")]
+            "deflate" => Self::Deflate,
+            #[cfg(feature = "zstd")]
+            "zstd" => Self::Zstd,
+            _ => Self::default(),
+        })
+    }
+}
+
+impl ToString for CompressionMethod {
+    fn to_string(&self) -> String {
+        match self {
+            #[cfg(feature = "deflate")]
+            Self::Deflate => "deflate".to_owned(),
+            #[cfg(feature = "zstd")]
+            Self::Zstd => "zstd".to_owned(),
+        }
+    }
+}
+
 pub enum FlateEncoder<W: Write> {
     #[cfg(feature = "deflate")]
     Deflate(DeflateEncoder<W>),

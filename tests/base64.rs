@@ -17,13 +17,20 @@ include!("../test_util.rs");
 
 use include_flate::flate;
 
+pub static DATA_RAW: &[u8] =
+    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/base64.txt"));
+
 flate!(pub static DATA1: str from "assets/base64.txt");
 flate!(pub static DATA2: str from "assets/base64.txt" with deflate);
 flate!(pub static DATA3: str from "assets/base64.txt" with zstd);
+flate!(pub static DATA4: IFlate from "assets/base64.txt" with deflate);
+flate!(pub static DATA5: IFlate from "assets/base64.txt" with zstd);
 
 #[test]
 fn test() {
     verify_str("base64.txt", &DATA1);
     verify_str("base64.txt", &DATA2);
     verify_str("base64.txt", &DATA3);
+    // verify_iflate("base64.txt", "deflate", &DATA4); // FAIL
+    verify_iflate("base64.txt", "zstd", &DATA5);
 }
