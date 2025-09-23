@@ -130,21 +130,23 @@ macro_rules! flate {
                 _ => $crate::CompressionMethod::default(),
             };
             let compressed = $crate::codegen::deflate_file!($path $($algo)?).to_vec();
-            $crate::IFlate {
-                compressed,
-                algo
-            }
+            $crate::IFlate::new(compressed, algo)
         });
     };
 }
 
 #[derive(Debug)]
 pub struct IFlate {
-    pub compressed: Vec<u8>,
-    pub algo: CompressionMethod,
+    compressed: Vec<u8>,
+    algo: CompressionMethod,
 }
 
 impl IFlate {
+    #[doc(hidden)]
+    pub fn new(compressed: Vec<u8>, algo: CompressionMethod) -> Self {
+        Self { compressed, algo }
+    }
+
     pub fn compressed(&self) -> &[u8] {
         &self.compressed
     }
