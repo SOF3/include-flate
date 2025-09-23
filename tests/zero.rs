@@ -28,6 +28,6 @@ fn test() {
     verify("zero.dat", &DATA1);
     verify("zero.dat", &DATA2);
     verify("zero.dat", &DATA3);
-    // verify_iflate("zero.dat", "deflate", &DATA4);
-    verify_iflate("zero.dat", "zstd", &DATA5);
+    verify_iflate("zero.dat", CompressionMethod::Deflate, &DATA4);
+    verify_iflate("zero.dat", CompressionMethod::Zstd, &DATA5);
 }

@@ -157,8 +157,8 @@ impl IFlate {
         String::from_utf8(self.decoded())
     }
 
-    pub fn algo(&self) -> String {
-        self.algo.to_string()
+    pub fn algo(&self) -> CompressionMethod {
+        self.algo
     }
 }
 

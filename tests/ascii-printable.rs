@@ -28,6 +28,6 @@ fn test() {
     verify_str("ascii-printable.txt", &DATA1);
     verify_str("ascii-printable.txt", &DATA2);
     verify_str("ascii-printable.txt", &DATA3);
-    verify_iflate("ascii-printable.txt", "deflate", &DATA4);
-    verify_iflate("ascii-printable.txt", "zstd", &DATA5);
+    verify_iflate("ascii-printable.txt", CompressionMethod::Deflate, &DATA4);
+    verify_iflate("ascii-printable.txt", CompressionMethod::Zstd, &DATA5);
 }

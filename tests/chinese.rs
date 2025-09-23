@@ -28,6 +28,6 @@ fn test() {
     verify_str("chinese.txt", &DATA1);
     verify_str("chinese.txt", &DATA2);
     verify_str("chinese.txt", &DATA3);
-    verify_iflate("chinese.txt", "deflate", &DATA4);
-    verify_iflate("chinese.txt", "zstd", &DATA5);
+    verify_iflate("chinese.txt", CompressionMethod::Deflate, &DATA4);
+    verify_iflate("chinese.txt", CompressionMethod::Zstd, &DATA5);
 }

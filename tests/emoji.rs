@@ -28,6 +28,6 @@ fn test() {
     verify_str("emoji.txt", &DATA1);
     verify_str("emoji.txt", &DATA2);
     verify_str("emoji.txt", &DATA3);
-    verify_iflate("emoji.txt", "deflate", &DATA4);
-    verify_iflate("emoji.txt", "zstd", &DATA5);
+    verify_iflate("emoji.txt", CompressionMethod::Deflate, &DATA4);
+    verify_iflate("emoji.txt", CompressionMethod::Zstd, &DATA5);
 }

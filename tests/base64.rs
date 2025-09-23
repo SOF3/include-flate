@@ -31,6 +31,6 @@ fn test() {
     verify_str("base64.txt", &DATA1);
     verify_str("base64.txt", &DATA2);
     verify_str("base64.txt", &DATA3);
-    // verify_iflate("base64.txt", "deflate", &DATA4);
-    verify_iflate("base64.txt", "zstd", &DATA5);
+    verify_iflate("base64.txt", CompressionMethod::Deflate, &DATA4);
+    verify_iflate("base64.txt", CompressionMethod::Zstd, &DATA5);
 }

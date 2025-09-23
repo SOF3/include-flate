@@ -57,7 +57,7 @@ impl fmt::Display for FlateCompressionError {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum CompressionMethod {
     #[cfg(feature = "deflate")]
     Deflate,
