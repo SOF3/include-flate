@@ -28,6 +28,6 @@ fn test() {
     verify("ff.dat", &DATA1);
     verify("ff.dat", &DATA2);
     verify("ff.dat", &DATA3);
-    // verify_iflate("ff.dat", "deflate", &DATA4); // FAIL
+    // verify_iflate("ff.dat", "deflate", &DATA4);
     verify_iflate("ff.dat", "zstd", &DATA5);
 }

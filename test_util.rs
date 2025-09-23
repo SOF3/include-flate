@@ -83,13 +83,11 @@ pub fn verify_iflate<P: AsRef<Path>>(name: P, algo: &str, iflate: &include_flate
         "deflate" => {
             let mut deflate_encoder = DeflateEncoder::new(&mut fcompressed);
             deflate_encoder.write_all(&fraw).unwrap();
-            deflate_encoder.flush().unwrap();
             deflate_encoder.finish().unwrap();
         },
         "zstd" => {
             let mut zstd_encoder = ZstdEncoder::new(&mut fcompressed, 0).unwrap();
             zstd_encoder.write_all(&fraw).unwrap();
-            zstd_encoder.flush().unwrap();
             zstd_encoder.finish().unwrap();
         }
         _ => panic!("unk algo"),

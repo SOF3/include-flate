@@ -28,6 +28,6 @@ fn test() {
     verify("random.dat", &DATA1);
     verify("random.dat", &DATA2);
     verify("random.dat", &DATA3);
-    // verify_iflate("random.dat", "deflate", &DATA4); // FAIL
+    // verify_iflate("random.dat", "deflate", &DATA4);
     verify_iflate("random.dat", "zstd", &DATA5);
 }
