@@ -109,10 +109,11 @@ macro_rules! flate {
 
         $(#[$meta])*
         $(pub $(($($vis)+))?)? static $name: ::std::sync::LazyLock<::std::string::String> = ::std::sync::LazyLock::new(|| {
-            use std::str::FromStr;
-
-            #[allow(clippy::unwrap_used, reason = "Infallible")]
-            let algo = $crate::CompressionMethod::from_str(stringify!($($algo)?)).unwrap();
+            let algo = match stringify!($($algo)?){
+                "deflate" => $crate::CompressionMethod::Deflate,
+                "zstd" => $crate::CompressionMethod::Zstd,
+                _ => $crate::CompressionMethod::default(),
+            };
             $crate::decode_string($crate::codegen::deflate_utf8_file!($path $($algo)?), Some($crate::CompressionMethodTy(algo)))
         });
     };
@@ -123,10 +124,11 @@ macro_rules! flate {
 
         $(#[$meta])*
         $(pub $(($($vis)+))?)? static $name: ::std::sync::LazyLock<$crate::IFlate> = ::std::sync::LazyLock::new(|| {
-            use std::str::FromStr;
-
-            #[allow(clippy::unwrap_used, reason = "Infallible")]
-            let algo = $crate::CompressionMethod::from_str(stringify!($($algo)?)).unwrap();
+            let algo = match stringify!($($algo)?){
+                "deflate" => $crate::CompressionMethod::Deflate,
+                "zstd" => $crate::CompressionMethod::Zstd,
+                _ => $crate::CompressionMethod::default(),
+            };
             let compressed = $crate::codegen::deflate_file!($path $($algo)?).to_vec();
             $crate::IFlate {
                 compressed,

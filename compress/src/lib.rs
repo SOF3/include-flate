@@ -95,20 +95,6 @@ impl Default for CompressionMethod {
     }
 }
 
-impl std::str::FromStr for CompressionMethod {
-    type Err = std::convert::Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s {
-            #[cfg(feature = "deflate")]
-            "deflate" => Self::Deflate,
-            #[cfg(feature = "zstd")]
-            "zstd" => Self::Zstd,
-            _ => Self::default(),
-        })
-    }
-}
-
 impl ToString for CompressionMethod {
     fn to_string(&self) -> String {
         match self {
