@@ -29,8 +29,8 @@
 /// The low-level macros used by this crate.
 pub use include_flate_codegen as codegen;
 use include_flate_compress::apply_decompression;
+use std::string::FromUtf8Error;
 
-#[doc(hidden)]
 pub use include_flate_compress::CompressionMethod;
 
 /// This macro is like [`include_bytes!`][1] or [`include_str!`][2], but compresses at compile time
@@ -129,7 +129,7 @@ macro_rules! flate {
                 "zstd" => $crate::CompressionMethod::Zstd,
                 _ => $crate::CompressionMethod::default(),
             };
-            let compressed = $crate::codegen::deflate_file!($path $($algo)?).to_vec();
+            let compressed = $crate::codegen::deflate_file!($path $($algo)?);
             $crate::IFlate::new(compressed, algo)
         });
     };
@@ -137,13 +137,13 @@ macro_rules! flate {
 
 #[derive(Debug)]
 pub struct IFlate {
-    compressed: Vec<u8>,
+    compressed: &'static [u8],
     algo: CompressionMethod,
 }
 
 impl IFlate {
     #[doc(hidden)]
-    pub fn new(compressed: Vec<u8>, algo: CompressionMethod) -> Self {
+    pub fn new(compressed: &'static [u8], algo: CompressionMethod) -> Self {
         Self { compressed, algo }
     }
 
@@ -155,7 +155,7 @@ impl IFlate {
         decode(&self.compressed, Some(CompressionMethodTy(self.algo)))
     }
 
-    pub fn decode_string(&self) -> Result<String, std::string::FromUtf8Error> {
+    pub fn decode_string(&self) -> Result<String, FromUtf8Error> {
         String::from_utf8(self.decoded())
     }
 
