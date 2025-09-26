@@ -29,8 +29,8 @@
 /// The low-level macros used by this crate.
 pub use include_flate_codegen as codegen;
 use include_flate_compress::apply_decompression;
+use std::string::FromUtf8Error;
 
-#[doc(hidden)]
 pub use include_flate_compress::CompressionMethod;
 
 /// This macro is like [`include_bytes!`][1] or [`include_str!`][2], but compresses at compile time
@@ -117,6 +117,51 @@ macro_rules! flate {
             $crate::decode_string($crate::codegen::deflate_utf8_file!($path $($algo)?), Some($crate::CompressionMethodTy(algo)))
         });
     };
+    ($(#[$meta:meta])*
+        $(pub $(($($vis:tt)+))?)? static $name:ident: IFlate from $path:literal $(with $algo:ident)?) => {
+        // HACK: workaround to make cargo auto rebuild on modification of source file
+        const _: &'static [u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path));
+
+        $(#[$meta])*
+        $(pub $(($($vis)+))?)? static $name: ::std::sync::LazyLock<$crate::IFlate> = ::std::sync::LazyLock::new(|| {
+            let algo = match stringify!($($algo)?){
+                "deflate" => $crate::CompressionMethod::Deflate,
+                "zstd" => $crate::CompressionMethod::Zstd,
+                _ => $crate::CompressionMethod::default(),
+            };
+            let compressed = $crate::codegen::deflate_file!($path $($algo)?);
+            $crate::IFlate::new(compressed, algo)
+        });
+    };
+}
+
+#[derive(Debug)]
+pub struct IFlate {
+    compressed: &'static [u8],
+    algo: CompressionMethod,
+}
+
+impl IFlate {
+    #[doc(hidden)]
+    pub fn new(compressed: &'static [u8], algo: CompressionMethod) -> Self {
+        Self { compressed, algo }
+    }
+
+    pub fn compressed(&self) -> &[u8] {
+        &self.compressed
+    }
+
+    pub fn decoded(&self) -> Vec<u8> {
+        decode(&self.compressed, Some(CompressionMethodTy(self.algo)))
+    }
+
+    pub fn decode_string(&self) -> Result<String, FromUtf8Error> {
+        String::from_utf8(self.decoded())
+    }
+
+    pub fn algo(&self) -> CompressionMethod {
+        self.algo
+    }
 }
 
 #[derive(Debug)]

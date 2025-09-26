@@ -57,7 +57,7 @@ impl fmt::Display for FlateCompressionError {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum CompressionMethod {
     #[cfg(feature = "deflate")]
     Deflate,
@@ -91,6 +91,17 @@ impl Default for CompressionMethod {
         #[cfg(all(not(feature = "deflate"), feature = "zstd"))]
         {
             Self::Zstd
+        }
+    }
+}
+
+impl ToString for CompressionMethod {
+    fn to_string(&self) -> String {
+        match self {
+            #[cfg(feature = "deflate")]
+            Self::Deflate => "deflate".to_owned(),
+            #[cfg(feature = "zstd")]
+            Self::Zstd => "zstd".to_owned(),
         }
     }
 }

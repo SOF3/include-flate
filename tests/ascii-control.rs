@@ -17,13 +17,17 @@ include!("../test_util.rs");
 
 use include_flate::flate;
 
-flate!(pub static DATA1: str from "assets/ascii-printable.txt");
-flate!(pub static DATA2: str from "assets/ascii-printable.txt" with deflate);
-flate!(pub static DATA3: str from "assets/ascii-printable.txt" with zstd);
+flate!(pub static DATA1: str from "assets/ascii-control.txt");
+flate!(pub static DATA2: str from "assets/ascii-control.txt" with deflate);
+flate!(pub static DATA3: str from "assets/ascii-control.txt" with zstd);
+flate!(pub static DATA4: IFlate from "assets/ascii-control.txt" with deflate);
+flate!(pub static DATA5: IFlate from "assets/ascii-control.txt" with zstd);
 
 #[test]
 fn test() {
-    verify_str("ascii-printable.txt", &DATA1);
-    verify_str("ascii-printable.txt", &DATA2);
-    verify_str("ascii-printable.txt", &DATA3);
+    verify_str("ascii-control.txt", &DATA1);
+    verify_str("ascii-control.txt", &DATA2);
+    verify_str("ascii-control.txt", &DATA3);
+    verify_iflate("ascii-control.txt", CompressionMethod::Deflate, &DATA4);
+    verify_iflate("ascii-control.txt", CompressionMethod::Zstd, &DATA5);
 }

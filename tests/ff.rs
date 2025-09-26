@@ -20,10 +20,14 @@ use include_flate::flate;
 flate!(pub static DATA1: [u8] from "assets/ff.dat");
 flate!(pub static DATA2: [u8] from "assets/ff.dat" with deflate);
 flate!(pub static DATA3: [u8] from "assets/ff.dat" with zstd);
+flate!(pub static DATA4: IFlate from "assets/ff.dat" with deflate);
+flate!(pub static DATA5: IFlate from "assets/ff.dat" with zstd);
 
 #[test]
 fn test() {
     verify("ff.dat", &DATA1);
     verify("ff.dat", &DATA2);
     verify("ff.dat", &DATA3);
+    verify_iflate("ff.dat", CompressionMethod::Deflate, &DATA4);
+    verify_iflate("ff.dat", CompressionMethod::Zstd, &DATA5);
 }

@@ -70,3 +70,19 @@ pub fn verify_str(name: &str, data: &str) {
         data
     );
 }
+
+pub fn verify_iflate<P: AsRef<Path>>(name: P, method: CompressionMethod, iflate: &include_flate::IFlate) {
+    assert_eq!(iflate.algo(), method);
+    let path = get_file_path(None, &name);
+    let mut file = File::open(&path).unwrap();
+    let mut file_buffer = Vec::new();
+    file.read_to_end(&mut file_buffer).unwrap();
+    let mut source = std::io::Cursor::new(file_buffer);
+    let mut compressed_buffer = Vec::new();
+    {
+        let mut compressed_cursor = std::io::Cursor::new(&mut compressed_buffer);
+        apply_compression(&mut source, &mut compressed_cursor, method).unwrap();
+        compressed_cursor.seek(SeekFrom::Start(0)).unwrap(); // Reset cursor position
+    }
+    assert_eq!(&iflate.compressed(), &compressed_buffer);
+}
