@@ -16,9 +16,11 @@
 #[cfg(not(any(feature = "zstd", feature = "deflate")))]
 compile_error!("You must enable either the `deflate` or `zstd` feature.");
 
+#[cfg(feature = "zstd")]
+use std::io::BufReader;
 use std::{
     fmt,
-    io::{self, BufRead, BufReader, Read, Seek, Write},
+    io::{self, BufRead, Read, Seek, Write},
 };
 
 #[cfg(feature = "deflate")]
