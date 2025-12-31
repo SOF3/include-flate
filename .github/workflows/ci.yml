@@ -40,3 +40,33 @@ jobs:
         run: "cargo clippy --workspace ${{matrix.feature}} ${{matrix.stability}}"
       - name: cargo test
         run: cargo test --workspace ${{matrix.feature}} ${{matrix.stability}}
+  feature-deps-check:
+    name: Assert specific deps only exist when their corresponding features are enabled
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          default: true
+      - name: assert deps don't exist with --no-default-features
+        run: |
+          for DEP in libflate zstd; do
+            if cargo tree --no-default-features --invert $DEP; then
+              echo "Dependency $DEP should not exist with --no-default-features"
+              exit 1
+            fi
+          done
+      - name: assert `deflate` feature doesn't create dep on `zstd`
+        run: |
+          if cargo tree --no-default-features --features deflate --invert zstd; then
+            echo "Feature `deflate` should not create dep on `zstd`"
+            exit 1
+          fi
+      - name: assert `zstd` feature doesn't create dep on `libflate`
+        run: |
+          if cargo tree --no-default-features --features zstd --invert libflate; then
+            echo "Feature `zstd` should not create dep on `libflate`"
+            exit 1
+          fi
