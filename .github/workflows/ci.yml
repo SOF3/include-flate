@@ -13,8 +13,8 @@ jobs:
           toolchain: stable
           profile: default
       - run: cargo fmt --all -- --check
-  lint:
-    name: clippy lint
+  lint-and-test:
+    name: Lint with cargo clippy and test with cargo test
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -37,4 +37,6 @@ jobs:
           profile: default
           default: true
       - name: cargo clippy
-        run: "cargo clippy --all ${{matrix.feature}} ${{matrix.stability}}"
+        run: "cargo clippy --workspace ${{matrix.feature}} ${{matrix.stability}}"
+      - name: cargo test
+        run: cargo test --workspace ${{matrix.feature}} ${{matrix.stability}}
