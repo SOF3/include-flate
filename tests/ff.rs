@@ -18,16 +18,24 @@ include!("../test_util.rs");
 use include_flate::flate;
 
 flate!(pub static DATA1: [u8] from "assets/ff.dat");
+#[cfg(feature = "deflate")]
 flate!(pub static DATA2: [u8] from "assets/ff.dat" with deflate);
+#[cfg(feature = "zstd")]
 flate!(pub static DATA3: [u8] from "assets/ff.dat" with zstd);
+#[cfg(feature = "deflate")]
 flate!(pub static DATA4: IFlate from "assets/ff.dat" with deflate);
+#[cfg(feature = "zstd")]
 flate!(pub static DATA5: IFlate from "assets/ff.dat" with zstd);
 
 #[test]
 fn test() {
     verify("ff.dat", &DATA1);
+    #[cfg(feature = "deflate")]
     verify("ff.dat", &DATA2);
+    #[cfg(feature = "zstd")]
     verify("ff.dat", &DATA3);
+    #[cfg(feature = "deflate")]
     verify_iflate("ff.dat", CompressionMethod::Deflate, &DATA4);
+    #[cfg(feature = "zstd")]
     verify_iflate("ff.dat", CompressionMethod::Zstd, &DATA5);
 }
