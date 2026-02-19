@@ -29,11 +29,15 @@ include = ["/src", "/LICENSE", "/README.md"]
 [dependencies]
 include-flate-codegen = { version = "0.3.1", path = "codegen" }
 include-flate-compress = { version = "0.3.1", path = "compress" }
-libflate = { workspace = true }
-zstd = { workspace = true }
+libflate = { workspace = true, optional = true }
+zstd = { workspace = true, optional = true }
 
 [features]
 default = ["deflate", "zstd"]
-deflate = ["include-flate-compress/deflate"]
-zstd = ["include-flate-compress/zstd"]
+deflate = [
+  "include-flate-compress/deflate",
+  "include-flate-codegen/deflate",
+  "dep:libflate",
+]
+zstd = ["include-flate-compress/zstd", "include-flate-codegen/zstd", "dep:zstd"]
 no-compression-warnings = ["include-flate-codegen/no-compression-warnings"]

@@ -88,10 +88,22 @@ impl syn::parse::Parse for FlateArgs {
             let lookahead = input.lookahead1();
             if lookahead.peek(kw::deflate) {
                 input.parse::<kw::deflate>()?;
-                Some(CompressionMethodTy(CompressionMethod::Deflate))
+
+                #[cfg(feature = "deflate")]
+                {
+                    Some(CompressionMethodTy(CompressionMethod::Deflate))
+                }
+                #[cfg(not(feature = "deflate"))]
+                return Err(lookahead.error());
             } else if lookahead.peek(kw::zstd) {
                 input.parse::<kw::zstd>()?;
-                Some(CompressionMethodTy(CompressionMethod::Zstd))
+
+                #[cfg(feature = "zstd")]
+                {
+                    Some(CompressionMethodTy(CompressionMethod::Zstd))
+                }
+                #[cfg(not(feature = "zstd"))]
+                return Err(lookahead.error());
             } else {
                 return Err(lookahead.error());
             }
@@ -106,7 +118,7 @@ mod kw {
     syn::custom_keyword!(zstd);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct CompressionMethodTy(CompressionMethod);
 
 fn compression_ratio(original_size: u64, compressed_size: u64) -> f64 {
@@ -122,9 +134,7 @@ fn inner(ts: TokenStream, utf8: bool) -> syn::Result<impl Into<TokenStream>> {
 
     let args: FlateArgs = syn::parse2::<FlateArgs>(ts.to_owned().into())?;
     let path = PathBuf::from_str(&args.path.value()).map_err(emap)?;
-    let algo = args
-        .algorithm
-        .unwrap_or(CompressionMethodTy(CompressionMethod::Deflate));
+    let algo = args.algorithm.unwrap_or_default();
 
     if path.is_absolute() {
         Err(emap("absolute paths are not supported"))?;

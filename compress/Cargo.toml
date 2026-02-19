@@ -13,6 +13,5 @@ libflate = { workspace = true, optional = true }
 zstd = { workspace = true, optional = true }
 
 [features]
-default = ["deflate", "zstd"]
 deflate = ["dep:libflate"]
 zstd = ["dep:zstd"]

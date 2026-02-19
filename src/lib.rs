@@ -164,7 +164,7 @@ impl IFlate {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CompressionMethodTy(pub CompressionMethod);
 
 impl Into<CompressionMethod> for CompressionMethodTy {
@@ -178,9 +178,7 @@ impl Into<CompressionMethod> for CompressionMethodTy {
 pub fn decode(bytes: &[u8], algo: Option<CompressionMethodTy>) -> Vec<u8> {
     use std::io::Cursor;
 
-    let algo: CompressionMethod = algo
-        .unwrap_or(CompressionMethodTy(CompressionMethod::Deflate))
-        .into();
+    let algo: CompressionMethod = algo.unwrap_or_default().into();
     let mut source = Cursor::new(bytes);
     let mut ret = Vec::new();
 
