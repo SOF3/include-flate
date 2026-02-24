@@ -18,7 +18,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 
-use include_flate_compress::{apply_compression, apply_decompression, CompressionMethod};
+use include_flate_compress::{CompressionMethod, apply_compression, apply_decompression};
 
 pub fn get_file_path<P: AsRef<Path>>(relative_from: Option<&Path>, path: P) -> PathBuf {
     let cargo_manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
@@ -58,7 +58,9 @@ pub fn verify_compression<P: AsRef<Path>>(name: P, data: &[u8], method: Compress
 }
 
 pub fn verify<P: AsRef<Path>>(name: P, data: &[u8]) {
+    #[cfg(feature = "deflate")]
     verify_compression(&name, data, CompressionMethod::Deflate);
+    #[cfg(feature = "zstd")]
     verify_compression(&name, data, CompressionMethod::Zstd);
     assert_eq!(read_file(&name), data);
 }
@@ -71,7 +73,11 @@ pub fn verify_str(name: &str, data: &str) {
     );
 }
 
-pub fn verify_iflate<P: AsRef<Path>>(name: P, method: CompressionMethod, iflate: &include_flate::IFlate) {
+pub fn verify_iflate<P: AsRef<Path>>(
+    name: P,
+    method: CompressionMethod,
+    iflate: &include_flate::IFlate,
+) {
     assert_eq!(iflate.algo(), method);
     let path = get_file_path(None, &name);
     let mut file = File::open(&path).unwrap();

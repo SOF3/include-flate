@@ -27,13 +27,11 @@ keywords = ["compression", "deflate", "macro", "include", "assets"]
 include = ["/src", "/LICENSE", "/README.md"]
 
 [dependencies]
-include-flate-codegen = { version = "0.3.1", path = "codegen" }
-include-flate-compress = { version = "0.3.1", path = "compress" }
-libflate = { workspace = true }
-zstd = { workspace = true }
+include-flate-codegen = { version = "0.3.1", path = "codegen", default-features = false }
+include-flate-compress = { version = "0.3.1", path = "compress", default-features = false }
 
 [features]
 default = ["deflate", "zstd"]
-deflate = ["include-flate-compress/deflate"]
-zstd = ["include-flate-compress/zstd"]
+deflate = ["include-flate-codegen/deflate", "include-flate-compress/deflate"]
+zstd = ["include-flate-codegen/zstd", "include-flate-compress/zstd"]
 no-compression-warnings = ["include-flate-codegen/no-compression-warnings"]

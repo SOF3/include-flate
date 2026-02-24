@@ -18,7 +18,9 @@ include!("../test_util.rs");
 use include_flate::flate;
 
 flate!(pub static DATA: str from "assets/009f.dat");
+#[cfg(feature = "deflate")]
 flate!(pub static DATA: str from "assets/009f.dat" with deflate);
+#[cfg(feature = "zstd")]
 flate!(pub static DATA: str from "assets/009f.dat" with zstd);
 
 #[test]

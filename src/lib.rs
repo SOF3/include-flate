@@ -99,7 +99,8 @@ macro_rules! flate {
 
         $(#[$meta])*
         $(pub $(($($vis)+))?)? static $name: ::std::sync::LazyLock<::std::vec::Vec<u8>> = ::std::sync::LazyLock::new(|| {
-            $crate::decode($crate::codegen::deflate_file!($path), None)
+            let algo = $crate::__parse_algo!($($algo)?);
+            $crate::decode($crate::codegen::deflate_file!($path $($algo)?), Some(algo))
         });
     };
     ($(#[$meta:meta])*
@@ -109,12 +110,8 @@ macro_rules! flate {
 
         $(#[$meta])*
         $(pub $(($($vis)+))?)? static $name: ::std::sync::LazyLock<::std::string::String> = ::std::sync::LazyLock::new(|| {
-            let algo = match stringify!($($algo)?){
-                "deflate" => $crate::CompressionMethod::Deflate,
-                "zstd" => $crate::CompressionMethod::Zstd,
-                _ => $crate::CompressionMethod::default(),
-            };
-            $crate::decode_string($crate::codegen::deflate_utf8_file!($path $($algo)?), Some($crate::CompressionMethodTy(algo)))
+            let algo = $crate::__parse_algo!($($algo)?);
+            $crate::decode_string($crate::codegen::deflate_utf8_file!($path $($algo)?), Some(algo))
         });
     };
     ($(#[$meta:meta])*
@@ -124,14 +121,28 @@ macro_rules! flate {
 
         $(#[$meta])*
         $(pub $(($($vis)+))?)? static $name: ::std::sync::LazyLock<$crate::IFlate> = ::std::sync::LazyLock::new(|| {
-            let algo = match stringify!($($algo)?){
-                "deflate" => $crate::CompressionMethod::Deflate,
-                "zstd" => $crate::CompressionMethod::Zstd,
-                _ => $crate::CompressionMethod::default(),
-            };
+            let algo = $crate::__parse_algo!($($algo)?);
             let compressed = $crate::codegen::deflate_file!($path $($algo)?);
             $crate::IFlate::new(compressed, algo)
         });
+    };
+}
+
+/// Helper macro to parse the user-specified algorithm.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __parse_algo {
+    () => {
+        $crate::CompressionMethod::default()
+    };
+    (deflate) => {
+        $crate::CompressionMethod::Deflate
+    };
+    (zstd) => {
+        $crate::CompressionMethod::Zstd
+    };
+    ($other:ident) => {
+        compile_error!("Unknown compression algorithm: {}", stringify!($other))
     };
 }
 
@@ -152,7 +163,7 @@ impl IFlate {
     }
 
     pub fn decoded(&self) -> Vec<u8> {
-        decode(&self.compressed, Some(CompressionMethodTy(self.algo)))
+        decode(&self.compressed, Some(self.algo))
     }
 
     pub fn decode_string(&self) -> Result<String, FromUtf8Error> {
@@ -164,23 +175,12 @@ impl IFlate {
     }
 }
 
-#[derive(Debug)]
-pub struct CompressionMethodTy(pub CompressionMethod);
-
-impl Into<CompressionMethod> for CompressionMethodTy {
-    fn into(self) -> CompressionMethod {
-        self.0
-    }
-}
-
 #[doc(hidden)]
 #[allow(private_interfaces)]
-pub fn decode(bytes: &[u8], algo: Option<CompressionMethodTy>) -> Vec<u8> {
+pub fn decode(bytes: &[u8], algo: Option<CompressionMethod>) -> Vec<u8> {
     use std::io::Cursor;
 
-    let algo: CompressionMethod = algo
-        .unwrap_or(CompressionMethodTy(CompressionMethod::Deflate))
-        .into();
+    let algo: CompressionMethod = algo.unwrap_or_default().into();
     let mut source = Cursor::new(bytes);
     let mut ret = Vec::new();
 
@@ -194,7 +194,7 @@ pub fn decode(bytes: &[u8], algo: Option<CompressionMethodTy>) -> Vec<u8> {
 
 #[doc(hidden)]
 #[allow(private_interfaces)]
-pub fn decode_string(bytes: &[u8], algo: Option<CompressionMethodTy>) -> String {
+pub fn decode_string(bytes: &[u8], algo: Option<CompressionMethod>) -> String {
     // We should have checked for utf8 correctness in encode_utf8_file!
     String::from_utf8(decode(bytes, algo))
         .expect("flate_str has malformed UTF-8 despite checked at compile time")
