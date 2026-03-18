@@ -2,7 +2,7 @@
 members = [".", "codegen", "compress"]
 
 [workspace.package]
-version = "0.3.1"
+version = "0.3.2"
 authors = ["SOFe <sofe2038@gmail.com>"]
 edition = "2024"
 repository = "https://github.com/SOF3/include-flate.git"
