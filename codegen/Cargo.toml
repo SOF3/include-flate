@@ -16,7 +16,7 @@ proc-macro2 = "1.0.95"
 quote = "1.0.40"
 syn = { version = "2.0.104", features = ["full"] }
 include-flate-compress = { version = "0.3.1", path = "../compress", default-features = false }
-proc-macro-error = "1.0.4"
+proc-macro-error2 = "2.0.1"
 
 [features]
 default = ["deflate", "zstd"]
