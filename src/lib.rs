@@ -43,16 +43,16 @@ pub use include_flate_compress::CompressionMethod;
 /// ```
 ///
 /// - `$meta` is zero or more `#[...]` attributes that can be applied on the static parameters of
-/// `lazy_static`. For the actual semantics of the meta attributes, please refer to
-/// [`lazy_static`][3] documentation.
+///   `lazy_static`. For the actual semantics of the meta attributes, please refer to
+///   [`lazy_static`][3] documentation.
 /// - `$vis` is a visibility modifier (e.g. `pub`, `pub(crate)`) or empty.
 /// - `$name` is the name of the static variable..
 /// - `$type` can be either `[u8]` or `str`. However, the actual type created would dereference
-/// into `Vec<u8>` and `String` (although they are `AsRef<[u8]>` and `AsRef<str>`) respectively.
+///   into `Vec<u8>` and `String` (although they are `AsRef<[u8]>` and `AsRef<str>`) respectively.
 /// - `$file` is a path relative to the current [`CARGO_MANIFEST_DIR`][4]. Absolute paths are not supported.
-/// Note that **this is distinct from the behaviour of the builtin `include_bytes!`/`include_str!`
-/// macros** &mdash; `includle_bytes!`/`include_str!` paths are relative to the current source file,
-/// while `flate!` paths are relative to `CARGO_MANIFEST_DIR`.
+///   Note that **this is distinct from the behaviour of the builtin `include_bytes!`/`include_str!`
+///   macros** &mdash; `includle_bytes!`/`include_str!` paths are relative to the current source file,
+///   while `flate!` paths are relative to `CARGO_MANIFEST_DIR`.
 ///
 /// # Returns
 /// The macro expands to a [`lazy_static`][3] call, which lazily inflates the compressed bytes.
@@ -159,11 +159,11 @@ impl IFlate {
     }
 
     pub fn compressed(&self) -> &[u8] {
-        &self.compressed
+        self.compressed
     }
 
     pub fn decoded(&self) -> Vec<u8> {
-        decode(&self.compressed, Some(self.algo))
+        decode(self.compressed, Some(self.algo))
     }
 
     pub fn decode_string(&self) -> Result<String, FromUtf8Error> {
@@ -180,7 +180,7 @@ impl IFlate {
 pub fn decode(bytes: &[u8], algo: Option<CompressionMethod>) -> Vec<u8> {
     use std::io::Cursor;
 
-    let algo: CompressionMethod = algo.unwrap_or_default().into();
+    let algo = algo.unwrap_or_default();
     let mut source = Cursor::new(bytes);
     let mut ret = Vec::new();
 
