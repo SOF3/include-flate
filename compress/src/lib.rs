@@ -66,22 +66,19 @@ pub enum CompressionMethod {
 }
 
 impl CompressionMethod {
-    pub fn encoder<W: Write>(
-        &self,
-        write: W,
-    ) -> Result<FlateEncoder<W>, CompressionError> {
+    pub fn encoder<W: Write>(&self, write: W) -> Result<FlateEncoder<W>, CompressionError> {
         FlateEncoder::new(*self, write)
     }
 
-    pub fn decoder<R: Read>(
-        &self,
-        read: R,
-    ) -> Result<FlateDecoder<R>, CompressionError> {
+    pub fn decoder<R: Read>(&self, read: R) -> Result<FlateDecoder<R>, CompressionError> {
         FlateDecoder::new(*self, read)
     }
 }
 
-#[expect(clippy::derivable_impls, reason = "cfg_attr on defaults could be confusing")]
+#[expect(
+    clippy::derivable_impls,
+    reason = "cfg_attr on defaults could be confusing"
+)]
 #[cfg(any(feature = "deflate", feature = "zstd"))]
 impl Default for CompressionMethod {
     fn default() -> Self {
@@ -115,10 +112,7 @@ pub enum FlateEncoder<W: Write> {
 }
 
 impl<W: Write> FlateEncoder<W> {
-    pub fn new(
-        method: CompressionMethod,
-        write: W,
-    ) -> Result<FlateEncoder<W>, CompressionError> {
+    pub fn new(method: CompressionMethod, write: W) -> Result<FlateEncoder<W>, CompressionError> {
         match method {
             #[cfg(feature = "deflate")]
             CompressionMethod::Deflate => Ok(FlateEncoder::Deflate(DeflateEncoder::new(write))),
@@ -159,9 +153,7 @@ impl<W: Write> FlateEncoder<W> {
                 .into_result()
                 .map_err(CompressionError::DeflateError),
             #[cfg(feature = "zstd")]
-            FlateEncoder::Zstd(encoder) => {
-                encoder.finish().map_err(CompressionError::ZstdError)
-            }
+            FlateEncoder::Zstd(encoder) => encoder.finish().map_err(CompressionError::ZstdError),
         }
     }
 }
@@ -174,10 +166,7 @@ pub enum FlateDecoder<R> {
 }
 
 impl<R: Read> FlateDecoder<R> {
-    pub fn new(
-        method: CompressionMethod,
-        read: R,
-    ) -> Result<FlateDecoder<R>, CompressionError> {
+    pub fn new(method: CompressionMethod, read: R) -> Result<FlateDecoder<R>, CompressionError> {
         match method {
             #[cfg(feature = "deflate")]
             CompressionMethod::Deflate => Ok(FlateDecoder::Deflate(DeflateDecoder::new(read))),
@@ -219,8 +208,7 @@ pub fn apply_decompression(
     reader: impl Read,
     mut writer: impl Write,
     method: CompressionMethod,
-) -> Result<(), CompressionError>
-{
+) -> Result<(), CompressionError> {
     let mut decoder = method.decoder(reader)?;
     io::copy(&mut decoder, &mut writer)?;
     Ok(())
