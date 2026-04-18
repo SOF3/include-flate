@@ -42,9 +42,7 @@ pub use include_flate_compress::CompressionMethod;
 /// flate!($meta $vis static $name: $type from $file);
 /// ```
 ///
-/// - `$meta` is zero or more `#[...]` attributes that can be applied on the static parameters of
-///   `lazy_static`. For the actual semantics of the meta attributes, please refer to
-///   [`lazy_static`][3] documentation.
+/// - `$meta` is zero or more `#[...]` attributes that can be applied to the generated `static` [`LazyLock<...>`][3].
 /// - `$vis` is a visibility modifier (e.g. `pub`, `pub(crate)`) or empty.
 /// - `$name` is the name of the static variable..
 /// - `$type` can be either `[u8]` or `str`. However, the actual type created would dereference
@@ -55,7 +53,7 @@ pub use include_flate_compress::CompressionMethod;
 ///   while `flate!` paths are relative to `CARGO_MANIFEST_DIR`.
 ///
 /// # Returns
-/// The macro expands to a [`lazy_static`][3] call, which lazily inflates the compressed bytes.
+/// The macro expands to a `static` [`LazyLock<...>`][3], which lazily inflates the compressed bytes.
 ///
 /// # Compile errors
 /// - If the input format is incorrect
@@ -86,7 +84,7 @@ pub use include_flate_compress::CompressionMethod;
 ///
 ///   [1]: https://doc.rust-lang.org/std/macro.include_bytes.html
 ///   [2]: https://doc.rust-lang.org/std/macro.include_str.html
-///   [3]: https://docs.rs/lazy_static/1.3.0/lazy_static/
+///   [3]: https://doc.rust-lang.org/std/sync/struct.LazyLock.html
 ///   [4]: https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
 ///   [5]: https://docs.rs/libflate/0.1.26/libflate/
 ///   [6]: https://github.com/SOF3/include-flate/tree/master/tests
