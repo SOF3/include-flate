@@ -22,7 +22,7 @@ use std::str::{FromStr, from_utf8};
 
 use include_flate_compress::{CompressionMethod, apply_compression};
 use proc_macro::TokenStream;
-use proc_macro_error2::{emit_warning, proc_macro_error};
+use proc_macro_error3::{emit_warning, proc_macro_error};
 use proc_macro2::Span;
 use quote::quote;
 use syn::{Error, LitByteStr};
