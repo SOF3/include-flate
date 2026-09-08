@@ -11,7 +11,7 @@ license = "Apache-2.0"
 
 [workspace.dependencies]
 libflate = "2.3.0"
-zstd = "0.13.3"
+zstd = "0.14.0"
 
 [package]
 name = "include-flate"
