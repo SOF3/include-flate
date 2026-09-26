@@ -20,11 +20,11 @@ use include_flate::flate;
 flate!(pub static DATA1: str from "assets/ascii-control.txt");
 #[cfg(feature = "deflate")]
 flate!(pub static DATA2: str from "assets/ascii-control.txt" with deflate);
-#[cfg(feature = "zstd")]
+#[cfg(any(feature = "zstd", feature = "zstd-rust"))]
 flate!(pub static DATA3: str from "assets/ascii-control.txt" with zstd);
 #[cfg(feature = "deflate")]
 flate!(pub static DATA4: IFlate from "assets/ascii-control.txt" with deflate);
-#[cfg(feature = "zstd")]
+#[cfg(any(feature = "zstd", feature = "zstd-rust"))]
 flate!(pub static DATA5: IFlate from "assets/ascii-control.txt" with zstd);
 
 #[test]
@@ -32,10 +32,10 @@ fn test() {
     verify_str("ascii-control.txt", &DATA1);
     #[cfg(feature = "deflate")]
     verify_str("ascii-control.txt", &DATA2);
-    #[cfg(feature = "zstd")]
+    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
     verify_str("ascii-control.txt", &DATA3);
     #[cfg(feature = "deflate")]
     verify_iflate("ascii-control.txt", CompressionMethod::Deflate, &DATA4);
-    #[cfg(feature = "zstd")]
+    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
     verify_iflate("ascii-control.txt", CompressionMethod::Zstd, &DATA5);
 }

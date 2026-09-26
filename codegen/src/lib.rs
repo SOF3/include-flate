@@ -98,13 +98,16 @@ impl syn::parse::Parse for FlateArgs {
                     "Please enable the `deflate` feature",
                 ));
             } else if lookahead.peek(kw::zstd) {
-                #[cfg(feature = "zstd")]
+                #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
                 {
                     input.parse::<kw::zstd>()?;
                     Some(CompressionMethodTy(CompressionMethod::Zstd))
                 }
-                #[cfg(not(feature = "zstd"))]
-                return Err(Error::new(input.span(), "Please enable the `zstd` feature"));
+                #[cfg(not(any(feature = "zstd", feature = "zstd-rust")))]
+                return Err(Error::new(
+                    input.span(),
+                    "Please enable the `zstd` or `zstd-rust` feature",
+                ));
             } else {
                 return Err(lookahead.error());
             }

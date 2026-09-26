@@ -61,7 +61,11 @@ pub use include_flate_compress::CompressionMethod;
 /// - If `$type` is `str` but the file is not fully valid UTF-8
 ///
 /// # Algorithm
-/// Compression and decompression use the DEFLATE algorithm from [`libflate`][5].
+/// Compression and decompression use the DEFLATE algorithm from [`libflate`][5] by default,
+/// or Zstandard with `with zstd`. Zstandard is provided by the C library through the `zstd`
+/// feature, or by the pure-Rust [`structured-zstd`][7] through the `zstd-rust` feature, which
+/// needs no C toolchain and takes precedence when both are enabled. The two produce and read
+/// the same format.
 ///
 /// # Examples
 /// Below are some basic examples. For actual compiled examples, see the [`tests`][6] directory.
@@ -88,6 +92,7 @@ pub use include_flate_compress::CompressionMethod;
 ///   [4]: https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
 ///   [5]: https://docs.rs/libflate/0.1.26/libflate/
 ///   [6]: https://github.com/SOF3/include-flate/tree/master/tests
+///   [7]: https://docs.rs/structured-zstd
 #[macro_export]
 macro_rules! flate {
     ($(#[$meta:meta])*

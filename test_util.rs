@@ -60,7 +60,7 @@ pub fn verify_compression<P: AsRef<Path>>(name: P, data: &[u8], method: Compress
 pub fn verify<P: AsRef<Path>>(name: P, data: &[u8]) {
     #[cfg(feature = "deflate")]
     verify_compression(&name, data, CompressionMethod::Deflate);
-    #[cfg(feature = "zstd")]
+    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
     verify_compression(&name, data, CompressionMethod::Zstd);
     assert_eq!(read_file(&name), data);
 }

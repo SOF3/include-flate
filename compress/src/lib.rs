@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(not(any(feature = "zstd", feature = "deflate")))]
-compile_error!("You must enable either the `deflate` or `zstd` feature.");
+#[cfg(not(any(feature = "zstd", feature = "zstd-rust", feature = "deflate")))]
+compile_error!("You must enable either the `deflate`, `zstd` or `zstd-rust` feature.");
 
 use std::{
     fmt,
@@ -25,16 +25,49 @@ use std::{
 use libflate::deflate::Decoder as DeflateDecoder;
 #[cfg(feature = "deflate")]
 use libflate::deflate::Encoder as DeflateEncoder;
-#[cfg(feature = "zstd")]
-use zstd::Decoder as ZstdDecoder;
-#[cfg(feature = "zstd")]
-use zstd::Encoder as ZstdEncoder;
+
+// Zstandard has two interchangeable backends producing and reading the same
+// frame format: the `zstd` crate (bindings to the C library) and the pure-Rust
+// `structured-zstd`. When both features are enabled, `zstd-rust` is used: a
+// dependency that asks for it opts out of the C toolchain.
+#[cfg(feature = "zstd-rust")]
+type ZstdEncoder<W> = structured_zstd::encoding::StreamingEncoder<W>;
+#[cfg(all(feature = "zstd", not(feature = "zstd-rust")))]
+type ZstdEncoder<W> = zstd::Encoder<'static, W>;
+#[cfg(feature = "zstd-rust")]
+type ZstdDecoder<R> =
+    structured_zstd::decoding::StreamingDecoder<R, structured_zstd::decoding::FrameDecoder>;
+#[cfg(all(feature = "zstd", not(feature = "zstd-rust")))]
+type ZstdDecoder<R> = zstd::Decoder<'static, std::io::BufReader<R>>;
+
+#[cfg(feature = "zstd-rust")]
+fn zstd_encoder<W: Write>(write: W) -> io::Result<ZstdEncoder<W>> {
+    // `Default` is this backend's counterpart of zstd level 3, which the C
+    // backend selects through level 0.
+    Ok(ZstdEncoder::new(
+        write,
+        structured_zstd::encoding::CompressionLevel::Default,
+    ))
+}
+#[cfg(all(feature = "zstd", not(feature = "zstd-rust")))]
+fn zstd_encoder<W: Write>(write: W) -> io::Result<ZstdEncoder<W>> {
+    ZstdEncoder::new(write, 0)
+}
+
+#[cfg(feature = "zstd-rust")]
+fn zstd_decoder<R: Read>(read: R) -> io::Result<ZstdDecoder<R>> {
+    ZstdDecoder::new(read).map_err(io::Error::other)
+}
+#[cfg(all(feature = "zstd", not(feature = "zstd-rust")))]
+fn zstd_decoder<R: Read>(read: R) -> io::Result<ZstdDecoder<R>> {
+    ZstdDecoder::new(read)
+}
 
 #[derive(Debug)]
 pub enum CompressionError {
     #[cfg(feature = "deflate")]
     DeflateError(io::Error),
-    #[cfg(feature = "zstd")]
+    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
     ZstdError(io::Error),
     IoError(io::Error),
 }
@@ -50,7 +83,7 @@ impl fmt::Display for CompressionError {
         match self {
             #[cfg(feature = "deflate")]
             CompressionError::DeflateError(err) => write!(f, "Deflate error: {}", err),
-            #[cfg(feature = "zstd")]
+            #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
             CompressionError::ZstdError(err) => write!(f, "Zstd error: {}", err),
             CompressionError::IoError(err) => write!(f, "I/O error: {}", err),
         }
@@ -61,7 +94,7 @@ impl fmt::Display for CompressionError {
 pub enum CompressionMethod {
     #[cfg(feature = "deflate")]
     Deflate,
-    #[cfg(feature = "zstd")]
+    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
     Zstd,
 }
 
@@ -79,14 +112,14 @@ impl CompressionMethod {
     clippy::derivable_impls,
     reason = "cfg_attr on defaults could be confusing"
 )]
-#[cfg(any(feature = "deflate", feature = "zstd"))]
+#[cfg(any(feature = "deflate", feature = "zstd", feature = "zstd-rust"))]
 impl Default for CompressionMethod {
     fn default() -> Self {
         #[cfg(feature = "deflate")]
         {
             Self::Deflate
         }
-        #[cfg(all(not(feature = "deflate"), feature = "zstd"))]
+        #[cfg(all(not(feature = "deflate"), any(feature = "zstd", feature = "zstd-rust")))]
         {
             Self::Zstd
         }
@@ -98,7 +131,7 @@ impl fmt::Display for CompressionMethod {
         f.write_str(match self {
             #[cfg(feature = "deflate")]
             Self::Deflate => "deflate",
-            #[cfg(feature = "zstd")]
+            #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
             Self::Zstd => "zstd",
         })
     }
@@ -107,8 +140,8 @@ impl fmt::Display for CompressionMethod {
 pub enum FlateEncoder<W: Write> {
     #[cfg(feature = "deflate")]
     Deflate(DeflateEncoder<W>),
-    #[cfg(feature = "zstd")]
-    Zstd(ZstdEncoder<'static, W>),
+    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+    Zstd(ZstdEncoder<W>),
 }
 
 impl<W: Write> FlateEncoder<W> {
@@ -116,8 +149,8 @@ impl<W: Write> FlateEncoder<W> {
         match method {
             #[cfg(feature = "deflate")]
             CompressionMethod::Deflate => Ok(FlateEncoder::Deflate(DeflateEncoder::new(write))),
-            #[cfg(feature = "zstd")]
-            CompressionMethod::Zstd => ZstdEncoder::new(write, 0)
+            #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+            CompressionMethod::Zstd => zstd_encoder(write)
                 .map(FlateEncoder::Zstd)
                 .map_err(CompressionError::ZstdError),
         }
@@ -129,7 +162,7 @@ impl<W: Write> Write for FlateEncoder<W> {
         match self {
             #[cfg(feature = "deflate")]
             FlateEncoder::Deflate(encoder) => encoder.write(buf),
-            #[cfg(feature = "zstd")]
+            #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
             FlateEncoder::Zstd(encoder) => encoder.write(buf),
         }
     }
@@ -138,7 +171,7 @@ impl<W: Write> Write for FlateEncoder<W> {
         match self {
             #[cfg(feature = "deflate")]
             FlateEncoder::Deflate(encoder) => encoder.flush(),
-            #[cfg(feature = "zstd")]
+            #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
             FlateEncoder::Zstd(encoder) => encoder.flush(),
         }
     }
@@ -152,17 +185,17 @@ impl<W: Write> FlateEncoder<W> {
                 .finish()
                 .into_result()
                 .map_err(CompressionError::DeflateError),
-            #[cfg(feature = "zstd")]
+            #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
             FlateEncoder::Zstd(encoder) => encoder.finish().map_err(CompressionError::ZstdError),
         }
     }
 }
 
-pub enum FlateDecoder<R> {
+pub enum FlateDecoder<R: Read> {
     #[cfg(feature = "deflate")]
     Deflate(DeflateDecoder<R>),
-    #[cfg(feature = "zstd")]
-    Zstd(ZstdDecoder<'static, std::io::BufReader<R>>),
+    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+    Zstd(ZstdDecoder<R>),
 }
 
 impl<R: Read> FlateDecoder<R> {
@@ -170,9 +203,9 @@ impl<R: Read> FlateDecoder<R> {
         match method {
             #[cfg(feature = "deflate")]
             CompressionMethod::Deflate => Ok(FlateDecoder::Deflate(DeflateDecoder::new(read))),
-            #[cfg(feature = "zstd")]
+            #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
             CompressionMethod::Zstd => {
-                let decoder = ZstdDecoder::new(read)?;
+                let decoder = zstd_decoder(read)?;
                 Ok(FlateDecoder::Zstd(decoder))
             }
         }
@@ -184,7 +217,7 @@ impl<R: Read> Read for FlateDecoder<R> {
         match self {
             #[cfg(feature = "deflate")]
             FlateDecoder::Deflate(decoder) => decoder.read(buf),
-            #[cfg(feature = "zstd")]
+            #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
             FlateDecoder::Zstd(decoder) => decoder.read(buf),
         }
     }
