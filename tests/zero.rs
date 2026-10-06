@@ -20,22 +20,30 @@ use include_flate::flate;
 flate!(pub static DATA1: [u8] from "assets/zero.dat");
 #[cfg(feature = "deflate")]
 flate!(pub static DATA2: [u8] from "assets/zero.dat" with deflate);
-#[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+#[cfg(feature = "zstd")]
 flate!(pub static DATA3: [u8] from "assets/zero.dat" with zstd);
 #[cfg(feature = "deflate")]
 flate!(pub static DATA4: IFlate from "assets/zero.dat" with deflate);
-#[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+#[cfg(feature = "zstd")]
 flate!(pub static DATA5: IFlate from "assets/zero.dat" with zstd);
+#[cfg(feature = "zstd-rust")]
+flate!(pub static DATA6: [u8] from "assets/zero.dat" with zstd_rust);
+#[cfg(feature = "zstd-rust")]
+flate!(pub static DATA7: IFlate from "assets/zero.dat" with zstd_rust);
 
 #[test]
 fn test() {
     verify("zero.dat", &DATA1);
     #[cfg(feature = "deflate")]
     verify("zero.dat", &DATA2);
-    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+    #[cfg(feature = "zstd")]
     verify("zero.dat", &DATA3);
     #[cfg(feature = "deflate")]
     verify_iflate("zero.dat", CompressionMethod::Deflate, &DATA4);
-    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+    #[cfg(feature = "zstd")]
     verify_iflate("zero.dat", CompressionMethod::Zstd, &DATA5);
+    #[cfg(feature = "zstd-rust")]
+    verify("zero.dat", &DATA6);
+    #[cfg(feature = "zstd-rust")]
+    verify_iflate("zero.dat", CompressionMethod::ZstdRust, &DATA7);
 }

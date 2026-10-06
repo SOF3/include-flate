@@ -12,7 +12,7 @@ license = "Apache-2.0"
 [workspace.dependencies]
 libflate = "2.3.0"
 zstd = "0.14.0"
-structured-zstd = "0.0.56"
+structured-zstd = "0.0.58"
 
 [package]
 name = "include-flate"
@@ -35,7 +35,7 @@ include-flate-compress = { version = "0.3.4", path = "compress", default-feature
 default = ["deflate", "zstd"]
 deflate = ["include-flate-codegen/deflate", "include-flate-compress/deflate"]
 zstd = ["include-flate-codegen/zstd", "include-flate-compress/zstd"]
-# Zstandard through the pure-Rust `structured-zstd`, with no C toolchain. The
-# `with zstd` syntax and the compressed format are the same as with `zstd`.
+# Zstandard through the pure-Rust `structured-zstd`, with no C toolchain,
+# selected by `with zstd_rust`. Frames are interchangeable with `with zstd`.
 zstd-rust = ["include-flate-codegen/zstd-rust", "include-flate-compress/zstd-rust"]
 no-compression-warnings = ["include-flate-codegen/no-compression-warnings"]

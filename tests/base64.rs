@@ -23,22 +23,30 @@ pub static DATA_RAW: &[u8] =
 flate!(pub static DATA1: str from "assets/base64.txt");
 #[cfg(feature = "deflate")]
 flate!(pub static DATA2: str from "assets/base64.txt" with deflate);
-#[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+#[cfg(feature = "zstd")]
 flate!(pub static DATA3: str from "assets/base64.txt" with zstd);
 #[cfg(feature = "deflate")]
 flate!(pub static DATA4: IFlate from "assets/base64.txt" with deflate);
-#[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+#[cfg(feature = "zstd")]
 flate!(pub static DATA5: IFlate from "assets/base64.txt" with zstd);
+#[cfg(feature = "zstd-rust")]
+flate!(pub static DATA6: str from "assets/base64.txt" with zstd_rust);
+#[cfg(feature = "zstd-rust")]
+flate!(pub static DATA7: IFlate from "assets/base64.txt" with zstd_rust);
 
 #[test]
 fn test() {
     verify_str("base64.txt", &DATA1);
     #[cfg(feature = "deflate")]
     verify_str("base64.txt", &DATA2);
-    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+    #[cfg(feature = "zstd")]
     verify_str("base64.txt", &DATA3);
     #[cfg(feature = "deflate")]
     verify_iflate("base64.txt", CompressionMethod::Deflate, &DATA4);
-    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+    #[cfg(feature = "zstd")]
     verify_iflate("base64.txt", CompressionMethod::Zstd, &DATA5);
+    #[cfg(feature = "zstd-rust")]
+    verify_str("base64.txt", &DATA6);
+    #[cfg(feature = "zstd-rust")]
+    verify_iflate("base64.txt", CompressionMethod::ZstdRust, &DATA7);
 }

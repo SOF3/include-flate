@@ -20,22 +20,30 @@ use include_flate::flate;
 flate!(pub static DATA1: str from "assets/chinese.txt");
 #[cfg(feature = "deflate")]
 flate!(pub static DATA2: str from "assets/chinese.txt" with deflate);
-#[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+#[cfg(feature = "zstd")]
 flate!(pub static DATA3: str from "assets/chinese.txt" with zstd);
 #[cfg(feature = "deflate")]
 flate!(pub static DATA4: IFlate from "assets/chinese.txt" with deflate);
-#[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+#[cfg(feature = "zstd")]
 flate!(pub static DATA5: IFlate from "assets/chinese.txt" with zstd);
+#[cfg(feature = "zstd-rust")]
+flate!(pub static DATA6: str from "assets/chinese.txt" with zstd_rust);
+#[cfg(feature = "zstd-rust")]
+flate!(pub static DATA7: IFlate from "assets/chinese.txt" with zstd_rust);
 
 #[test]
 fn test() {
     verify_str("chinese.txt", &DATA1);
     #[cfg(feature = "deflate")]
     verify_str("chinese.txt", &DATA2);
-    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+    #[cfg(feature = "zstd")]
     verify_str("chinese.txt", &DATA3);
     #[cfg(feature = "deflate")]
     verify_iflate("chinese.txt", CompressionMethod::Deflate, &DATA4);
-    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+    #[cfg(feature = "zstd")]
     verify_iflate("chinese.txt", CompressionMethod::Zstd, &DATA5);
+    #[cfg(feature = "zstd-rust")]
+    verify_str("chinese.txt", &DATA6);
+    #[cfg(feature = "zstd-rust")]
+    verify_iflate("chinese.txt", CompressionMethod::ZstdRust, &DATA7);
 }

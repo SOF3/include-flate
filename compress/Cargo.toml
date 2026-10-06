@@ -17,6 +17,6 @@ structured-zstd = { workspace = true, optional = true }
 default = ["deflate", "zstd"]
 deflate = ["dep:libflate"]
 zstd = ["dep:zstd"]
-# Zstandard through the pure-Rust `structured-zstd` instead of the C library.
-# Same frame format; takes precedence when `zstd` is enabled as well.
+# Zstandard through the pure-Rust `structured-zstd`, as `CompressionMethod::ZstdRust`.
+# Same frame format as `CompressionMethod::Zstd`.
 zstd-rust = ["dep:structured-zstd"]

@@ -13,14 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! The two Zstandard backends read each other's output: a crate built with
-//! `zstd-rust` decodes what a `zstd` build embedded, and the reverse.
+//! `Zstd` and `ZstdRust` share the Zstandard frame format, so each one
+//! decodes what the other encoded.
 
 #![cfg(all(feature = "zstd", feature = "zstd-rust"))]
 
-use std::io::Read;
-
-use include_flate_compress::{CompressionMethod, apply_compression, apply_decompression};
+use super::{CompressionMethod, apply_compression, apply_decompression};
 
 fn sample() -> Vec<u8> {
     (0..200_000u32)
@@ -28,26 +26,22 @@ fn sample() -> Vec<u8> {
         .collect()
 }
 
-#[test]
-fn a_c_zstd_frame_decodes_with_the_rust_backend() {
+fn round_trip(encode: CompressionMethod, decode: CompressionMethod) {
     let data = sample();
-    let frame = zstd::encode_all(&data[..], 0).unwrap();
+    let mut frame = Vec::new();
+    apply_compression(&mut &data[..], &mut frame, encode).unwrap();
 
     let mut decoded = Vec::new();
-    apply_decompression(&frame[..], &mut decoded, CompressionMethod::Zstd).unwrap();
+    apply_decompression(&frame[..], &mut decoded, decode).unwrap();
     assert_eq!(decoded, data);
 }
 
 #[test]
-fn a_rust_backend_frame_decodes_with_c_zstd() {
-    let data = sample();
-    let mut frame = Vec::new();
-    apply_compression(&mut &data[..], &mut frame, CompressionMethod::Zstd).unwrap();
+fn a_zstd_frame_decodes_with_zstd_rust() {
+    round_trip(CompressionMethod::Zstd, CompressionMethod::ZstdRust);
+}
 
-    let mut decoded = Vec::new();
-    zstd::Decoder::new(&frame[..])
-        .unwrap()
-        .read_to_end(&mut decoded)
-        .unwrap();
-    assert_eq!(decoded, data);
+#[test]
+fn a_zstd_rust_frame_decodes_with_zstd() {
+    round_trip(CompressionMethod::ZstdRust, CompressionMethod::Zstd);
 }

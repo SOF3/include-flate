@@ -20,22 +20,30 @@ use include_flate::flate;
 flate!(pub static DATA1: str from "assets/emoji.txt");
 #[cfg(feature = "deflate")]
 flate!(pub static DATA2: str from "assets/emoji.txt" with deflate);
-#[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+#[cfg(feature = "zstd")]
 flate!(pub static DATA3: str from "assets/emoji.txt" with zstd);
 #[cfg(feature = "deflate")]
 flate!(pub static DATA4: IFlate from "assets/emoji.txt" with deflate);
-#[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+#[cfg(feature = "zstd")]
 flate!(pub static DATA5: IFlate from "assets/emoji.txt" with zstd);
+#[cfg(feature = "zstd-rust")]
+flate!(pub static DATA6: str from "assets/emoji.txt" with zstd_rust);
+#[cfg(feature = "zstd-rust")]
+flate!(pub static DATA7: IFlate from "assets/emoji.txt" with zstd_rust);
 
 #[test]
 fn test() {
     verify_str("emoji.txt", &DATA1);
     #[cfg(feature = "deflate")]
     verify_str("emoji.txt", &DATA2);
-    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+    #[cfg(feature = "zstd")]
     verify_str("emoji.txt", &DATA3);
     #[cfg(feature = "deflate")]
     verify_iflate("emoji.txt", CompressionMethod::Deflate, &DATA4);
-    #[cfg(any(feature = "zstd", feature = "zstd-rust"))]
+    #[cfg(feature = "zstd")]
     verify_iflate("emoji.txt", CompressionMethod::Zstd, &DATA5);
+    #[cfg(feature = "zstd-rust")]
+    verify_str("emoji.txt", &DATA6);
+    #[cfg(feature = "zstd-rust")]
+    verify_iflate("emoji.txt", CompressionMethod::ZstdRust, &DATA7);
 }

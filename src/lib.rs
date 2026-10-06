@@ -61,11 +61,11 @@ pub use include_flate_compress::CompressionMethod;
 /// - If `$type` is `str` but the file is not fully valid UTF-8
 ///
 /// # Algorithm
-/// Compression and decompression use the DEFLATE algorithm from [`libflate`][5] by default,
-/// or Zstandard with `with zstd`. Zstandard is provided by the C library through the `zstd`
-/// feature, or by the pure-Rust [`structured-zstd`][7] through the `zstd-rust` feature, which
-/// needs no C toolchain and takes precedence when both are enabled. The two produce and read
-/// the same format.
+/// Compression and decompression use the DEFLATE algorithm from [`libflate`][5] by default.
+/// `with zstd` selects Zstandard through the C library (the `zstd` feature), and
+/// `with zstd_rust` selects Zstandard through the pure-Rust [`structured-zstd`][7]
+/// (the `zstd-rust` feature), which needs no C toolchain. Both produce and read the same
+/// frame format.
 ///
 /// # Examples
 /// Below are some basic examples. For actual compiled examples, see the [`tests`][6] directory.
@@ -143,6 +143,9 @@ macro_rules! __parse_algo {
     };
     (zstd) => {
         $crate::CompressionMethod::Zstd
+    };
+    (zstd_rust) => {
+        $crate::CompressionMethod::ZstdRust
     };
     ($other:ident) => {
         compile_error!("Unknown compression algorithm: {}", stringify!($other))
