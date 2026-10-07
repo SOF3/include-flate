@@ -30,11 +30,102 @@ use zstd::Decoder as ZstdDecoder;
 #[cfg(feature = "zstd")]
 use zstd::Encoder as ZstdEncoder;
 
-// The pure-Rust decoder keeps its state inline (the C one holds a pointer to
-// it), so it is boxed to keep the enum below the size of its other variants.
+/// Decodes the whole stream on the first read, every frame of it (RFC 8878
+/// 3), and hands the result out from then on.
 #[cfg(feature = "zstd-rust")]
-type ZstdRustDecoder<R> =
-    Box<structured_zstd::decoding::StreamingDecoder<R, structured_zstd::decoding::FrameDecoder>>;
+pub struct ZstdRustDecoder<R: Read> {
+    source: Option<R>,
+    decoded: io::Cursor<Vec<u8>>,
+}
+
+#[cfg(feature = "zstd-rust")]
+impl<R: Read> Read for ZstdRustDecoder<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if let Some(mut source) = self.source.take() {
+            let mut input = Vec::new();
+            source.read_to_end(&mut input)?;
+            self.decoded = io::Cursor::new(decode_zstd_rust(&input)?);
+        }
+        self.decoded.read(buf)
+    }
+}
+
+/// Decodes a Zstandard stream held in memory: every frame, skippable frames
+/// skipped (RFC 8878 3).
+#[cfg(feature = "zstd-rust")]
+fn decode_zstd_rust(bytes: &[u8]) -> io::Result<Vec<u8>> {
+    use structured_zstd::decoding::errors::ReadFrameHeaderError;
+    use structured_zstd::decoding::{
+        FrameContentSize, FrameDecoder, StreamingDecoder, find_frame_compressed_size,
+        read_frame_content_size,
+    };
+
+    fn invalid(err: impl fmt::Debug) -> io::Error {
+        io::Error::new(io::ErrorKind::InvalidData, format!("{err:?}"))
+    }
+
+    // Walk the frames first: when every one declares Frame_Content_Size
+    // (optional, RFC 8878 3.1.1.1.2), the stream decodes in one call straight
+    // into a buffer of exactly their total size.
+    let mut total = 0u64;
+    let mut all_declared = true;
+    let mut first_data_frame = None;
+    let mut offset = 0;
+    while offset < bytes.len() {
+        let frame = &bytes[offset..];
+        let len = find_frame_compressed_size(frame).map_err(invalid)?;
+        match read_frame_content_size(frame) {
+            Ok(size) => {
+                first_data_frame.get_or_insert(offset);
+                if let FrameContentSize::Known(size) = size {
+                    // RFC 8878 3.1.1.2: every block takes at least its 3-byte
+                    // header on disk and regenerates at most 128 KiB, so a
+                    // frame declaring more than that cannot be honest.
+                    let max = (len as u64 / 3) * (128 * 1024);
+                    if size > max {
+                        return Err(invalid(format!(
+                            "frame declares {size} bytes but its {len} bytes hold at most {max}"
+                        )));
+                    }
+                    // Each term is bounded by its frame's length as above, so
+                    // the sum stays far below u64::MAX.
+                    total += size;
+                } else {
+                    all_declared = false;
+                }
+            }
+            Err(ReadFrameHeaderError::SkipFrame { .. }) => {}
+            Err(err) => return Err(invalid(err)),
+        }
+        offset += len;
+    }
+
+    let Some(first_data_frame) = first_data_frame else {
+        return Ok(Vec::new());
+    };
+    if all_declared {
+        let size = usize::try_from(total).map_err(invalid)?;
+        let mut out = vec![0; size];
+        let written = FrameDecoder::new()
+            .decode_all(bytes, &mut out)
+            .map_err(invalid)?;
+        if written != size {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                format!("frames declare {size} bytes but hold {written}"),
+            ));
+        }
+        return Ok(out);
+    }
+
+    // `read_to_end` goes on through the following frames, unlike `read`; it
+    // has to start at a frame that is not skippable.
+    let mut out = Vec::new();
+    StreamingDecoder::new(&bytes[first_data_frame..])
+        .map_err(invalid)?
+        .read_to_end(&mut out)?;
+    Ok(out)
+}
 
 /// Collects the whole input and encodes it as one frame on finish, so the
 /// frame declares `Frame_Content_Size` and `decompress_slice` can decode it
@@ -190,7 +281,9 @@ impl<W: Write> Write for FlateEncoder<W> {
 }
 
 impl<W: Write> FlateEncoder<W> {
-    fn finish_encode(self) -> Result<W, CompressionError> {
+    /// Ends the stream and returns the writer. Every method needs this to
+    /// write its final bytes; `ZstdRust` writes the whole frame here.
+    pub fn finish(self) -> Result<W, CompressionError> {
         match self {
             #[cfg(feature = "deflate")]
             FlateEncoder::Deflate(encoder) => encoder
@@ -235,9 +328,10 @@ impl<R: Read> FlateDecoder<R> {
                 Ok(FlateDecoder::Zstd(decoder))
             }
             #[cfg(feature = "zstd-rust")]
-            CompressionMethod::ZstdRust => structured_zstd::decoding::StreamingDecoder::new(read)
-                .map(|decoder| FlateDecoder::ZstdRust(Box::new(decoder)))
-                .map_err(|err| CompressionError::ZstdRustError(io::Error::other(err))),
+            CompressionMethod::ZstdRust => Ok(FlateDecoder::ZstdRust(ZstdRustDecoder {
+                source: Some(read),
+                decoded: io::Cursor::new(Vec::new()),
+            })),
         }
     }
 }
@@ -266,7 +360,7 @@ where
 {
     let mut encoder = method.encoder(writer)?;
     io::copy(reader, &mut encoder)?;
-    encoder.finish_encode().map(|_| ())
+    encoder.finish().map(|_| ())
 }
 
 pub fn apply_decompression(
@@ -286,33 +380,7 @@ pub fn decompress_slice(
 ) -> Result<Vec<u8>, CompressionError> {
     #[cfg(feature = "zstd-rust")]
     if method == CompressionMethod::ZstdRust {
-        use structured_zstd::decoding::{FrameContentSize, FrameDecoder, read_frame_content_size};
-
-        fn zstd_rust_error(
-            err: impl Into<Box<dyn std::error::Error + Send + Sync>>,
-        ) -> CompressionError {
-            CompressionError::ZstdRustError(io::Error::other(err))
-        }
-
-        // Frame_Content_Size is optional (RFC 8878 3.1.1.1.2): with it the
-        // frame decodes in one call straight into an exactly sized buffer,
-        // without it only the streaming decoder can tell where the data ends.
-        if let FrameContentSize::Known(size) =
-            read_frame_content_size(bytes).map_err(zstd_rust_error)?
-        {
-            let size = usize::try_from(size).map_err(zstd_rust_error)?;
-            let mut out = vec![0; size];
-            let written = FrameDecoder::new()
-                .decode_all(bytes, &mut out)
-                .map_err(zstd_rust_error)?;
-            if written != size {
-                return Err(CompressionError::ZstdRustError(io::Error::new(
-                    io::ErrorKind::UnexpectedEof,
-                    format!("frame declares {size} bytes but holds {written}"),
-                )));
-            }
-            return Ok(out);
-        }
+        return decode_zstd_rust(bytes).map_err(CompressionError::ZstdRustError);
     }
 
     let mut out = Vec::new();

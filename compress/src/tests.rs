@@ -91,14 +91,10 @@ fn an_empty_zstd_rust_frame_round_trips() {
 /// still decodes, through the streaming decoder.
 #[test]
 fn a_zstd_rust_frame_without_content_size_decodes() {
-    use std::io::Write;
     use structured_zstd::decoding::{FrameContentSize, read_frame_content_size};
-    use structured_zstd::encoding::{CompressionLevel, StreamingEncoder};
 
     let data = sample();
-    let mut encoder = StreamingEncoder::new(Vec::new(), CompressionLevel::Default);
-    encoder.write_all(&data).unwrap();
-    let frame = encoder.finish().unwrap();
+    let frame = frame_without_content_size(&data);
     assert_eq!(
         read_frame_content_size(&frame).unwrap(),
         FrameContentSize::Unknown
@@ -141,4 +137,136 @@ fn a_zstd_rust_frame_shorter_than_declared_is_an_error() {
     );
 
     assert!(decompress_slice(&frame, CompressionMethod::ZstdRust).is_err());
+}
+
+/// A frame encoded without `Frame_Content_Size`, as a streaming encoder that
+/// does not know the input length writes it.
+fn frame_without_content_size(data: &[u8]) -> Vec<u8> {
+    use std::io::Write;
+    use structured_zstd::encoding::{CompressionLevel, StreamingEncoder};
+
+    let mut encoder = StreamingEncoder::new(Vec::new(), CompressionLevel::Default);
+    encoder.write_all(data).unwrap();
+    encoder.finish().unwrap()
+}
+
+/// RFC 8878 3.1.2: a skippable frame carrying `payload`.
+fn skippable_frame(payload: &[u8]) -> Vec<u8> {
+    let mut frame = 0x184D_2A50u32.to_le_bytes().to_vec();
+    frame.extend_from_slice(&u32::try_from(payload.len()).unwrap().to_le_bytes());
+    frame.extend_from_slice(payload);
+    frame
+}
+
+fn decode_streaming(bytes: &[u8]) -> Vec<u8> {
+    let mut out = Vec::new();
+    super::apply_decompression(bytes, &mut out, CompressionMethod::ZstdRust).unwrap();
+    out
+}
+
+/// The encoder handed out by `CompressionMethod::encoder` can be finished
+/// by its caller, which is what writes the frame.
+#[test]
+fn the_public_zstd_rust_encoder_can_be_finished() {
+    use std::io::Write;
+
+    let data = sample();
+    let mut encoder = CompressionMethod::ZstdRust.encoder(Vec::new()).unwrap();
+    encoder.write_all(&data).unwrap();
+    let frame = encoder.finish().unwrap();
+    assert_eq!(
+        decompress_slice(&frame, CompressionMethod::ZstdRust).unwrap(),
+        data
+    );
+}
+
+/// A tiny frame declaring a content size no frame of its length can hold is
+/// an error, not a capacity-overflow panic or an allocation of that size.
+#[test]
+fn a_zstd_rust_frame_declaring_an_impossible_size_is_an_error() {
+    // RFC 8878 3.1.1: magic, descriptor with an 8-byte Frame_Content_Size and
+    // Single_Segment_flag, the size, then one empty last raw block.
+    let mut frame = 0xFD2F_B528u32.to_le_bytes().to_vec();
+    frame.push(0xE0);
+    frame.extend_from_slice(&u64::MAX.to_le_bytes());
+    frame.extend_from_slice(&[0x01, 0x00, 0x00]);
+
+    assert!(decompress_slice(&frame, CompressionMethod::ZstdRust).is_err());
+}
+
+/// RFC 8878 3: a stream is a sequence of frames. Frames that declare their
+/// size decode in one call, through every frame, on both entry points.
+#[test]
+fn concatenated_zstd_rust_frames_decode_completely() {
+    let data = sample();
+    let (first, second) = data.split_at(data.len() / 3);
+    let mut stream = encode(first, CompressionMethod::ZstdRust);
+    stream.extend_from_slice(&encode(second, CompressionMethod::ZstdRust));
+
+    assert_eq!(
+        decompress_slice(&stream, CompressionMethod::ZstdRust).unwrap(),
+        data
+    );
+    assert_eq!(decode_streaming(&stream), data);
+}
+
+/// Frames without a declared size, with a skippable frame between them,
+/// decode completely; the skippable frame contributes nothing.
+#[test]
+fn concatenated_frames_without_content_size_decode_completely() {
+    let data = sample();
+    let (first, second) = data.split_at(data.len() / 3);
+    let mut stream = frame_without_content_size(first);
+    stream.extend_from_slice(&skippable_frame(b"meta"));
+    stream.extend_from_slice(&frame_without_content_size(second));
+
+    assert_eq!(
+        decompress_slice(&stream, CompressionMethod::ZstdRust).unwrap(),
+        data
+    );
+    assert_eq!(decode_streaming(&stream), data);
+}
+
+/// One frame with a declared size and one without still decode completely.
+#[test]
+fn frames_with_and_without_content_size_decode_completely() {
+    let data = sample();
+    let (first, second) = data.split_at(data.len() / 2);
+    let mut stream = encode(first, CompressionMethod::ZstdRust);
+    stream.extend_from_slice(&frame_without_content_size(second));
+
+    assert_eq!(
+        decompress_slice(&stream, CompressionMethod::ZstdRust).unwrap(),
+        data
+    );
+    assert_eq!(decode_streaming(&stream), data);
+}
+
+/// A skippable frame ahead of the data is skipped by both entry points.
+#[test]
+fn a_leading_skippable_frame_is_skipped() {
+    let data = sample();
+    let mut stream = skippable_frame(&[7; 16]);
+    stream.extend_from_slice(&encode(&data, CompressionMethod::ZstdRust));
+
+    assert_eq!(
+        decompress_slice(&stream, CompressionMethod::ZstdRust).unwrap(),
+        data
+    );
+    assert_eq!(decode_streaming(&stream), data);
+}
+
+/// Bytes after the last frame that do not form a frame are an error, not
+/// silently dropped.
+#[test]
+fn trailing_garbage_after_a_zstd_rust_frame_is_an_error() {
+    let data = sample();
+    let mut stream = encode(&data, CompressionMethod::ZstdRust);
+    stream.extend_from_slice(b"garbage");
+
+    assert!(decompress_slice(&stream, CompressionMethod::ZstdRust).is_err());
+    let mut out = Vec::new();
+    assert!(
+        super::apply_decompression(&stream[..], &mut out, CompressionMethod::ZstdRust).is_err()
+    );
 }
