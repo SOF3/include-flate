@@ -18,6 +18,8 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 
+#[cfg(all(feature = "zstd", feature = "zstd-rust"))]
+use include_flate_compress::decompress_slice;
 use include_flate_compress::{CompressionMethod, apply_compression, apply_decompression};
 
 pub fn get_file_path<P: AsRef<Path>>(relative_from: Option<&Path>, path: P) -> PathBuf {
@@ -66,6 +68,7 @@ pub fn verify_cross<P: AsRef<Path>>(name: P, encode: CompressionMethod, decode: 
     let mut decompressed = Vec::new();
     apply_decompression(&compressed[..], &mut decompressed, decode).unwrap();
     assert_eq!(decompressed, original);
+    assert_eq!(decompress_slice(&compressed, decode).unwrap(), original);
 }
 
 pub fn verify<P: AsRef<Path>>(name: P, data: &[u8]) {

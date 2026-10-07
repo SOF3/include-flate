@@ -30,14 +30,20 @@ use zstd::Decoder as ZstdDecoder;
 #[cfg(feature = "zstd")]
 use zstd::Encoder as ZstdEncoder;
 
-// The pure-Rust coders keep their state inline (the C ones hold a pointer to
-// it), so they are boxed to keep the enums below the size of their other
-// variants.
-#[cfg(feature = "zstd-rust")]
-type ZstdRustEncoder<W> = Box<structured_zstd::encoding::StreamingEncoder<W>>;
+// The pure-Rust decoder keeps its state inline (the C one holds a pointer to
+// it), so it is boxed to keep the enum below the size of its other variants.
 #[cfg(feature = "zstd-rust")]
 type ZstdRustDecoder<R> =
     Box<structured_zstd::decoding::StreamingDecoder<R, structured_zstd::decoding::FrameDecoder>>;
+
+/// Collects the whole input and encodes it as one frame on finish, so the
+/// frame declares `Frame_Content_Size` and `decompress_slice` can decode it
+/// into an exactly sized buffer in one call.
+#[cfg(feature = "zstd-rust")]
+pub struct ZstdRustEncoder<W: Write> {
+    input: Vec<u8>,
+    sink: W,
+}
 
 #[derive(Debug)]
 pub enum CompressionError {
@@ -146,15 +152,11 @@ impl<W: Write> FlateEncoder<W> {
             CompressionMethod::Zstd => ZstdEncoder::new(write, 0)
                 .map(FlateEncoder::Zstd)
                 .map_err(CompressionError::ZstdError),
-            // `Default` is this backend's counterpart of zstd level 3, which
-            // the C backend selects through level 0.
             #[cfg(feature = "zstd-rust")]
-            CompressionMethod::ZstdRust => Ok(FlateEncoder::ZstdRust(Box::new(
-                structured_zstd::encoding::StreamingEncoder::new(
-                    write,
-                    structured_zstd::encoding::CompressionLevel::Default,
-                ),
-            ))),
+            CompressionMethod::ZstdRust => Ok(FlateEncoder::ZstdRust(ZstdRustEncoder {
+                input: Vec::new(),
+                sink: write,
+            })),
         }
     }
 }
@@ -167,7 +169,10 @@ impl<W: Write> Write for FlateEncoder<W> {
             #[cfg(feature = "zstd")]
             FlateEncoder::Zstd(encoder) => encoder.write(buf),
             #[cfg(feature = "zstd-rust")]
-            FlateEncoder::ZstdRust(encoder) => encoder.write(buf),
+            FlateEncoder::ZstdRust(encoder) => {
+                encoder.input.extend_from_slice(buf);
+                Ok(buf.len())
+            }
         }
     }
 
@@ -177,8 +182,9 @@ impl<W: Write> Write for FlateEncoder<W> {
             FlateEncoder::Deflate(encoder) => encoder.flush(),
             #[cfg(feature = "zstd")]
             FlateEncoder::Zstd(encoder) => encoder.flush(),
+            // Nothing is encoded before the frame is finished.
             #[cfg(feature = "zstd-rust")]
-            FlateEncoder::ZstdRust(encoder) => encoder.flush(),
+            FlateEncoder::ZstdRust(_) => Ok(()),
         }
     }
 }
@@ -193,9 +199,17 @@ impl<W: Write> FlateEncoder<W> {
                 .map_err(CompressionError::DeflateError),
             #[cfg(feature = "zstd")]
             FlateEncoder::Zstd(encoder) => encoder.finish().map_err(CompressionError::ZstdError),
+            // `Default` is this backend's counterpart of zstd level 3, which
+            // the C backend selects through level 0.
             #[cfg(feature = "zstd-rust")]
-            FlateEncoder::ZstdRust(encoder) => {
-                (*encoder).finish().map_err(CompressionError::ZstdRustError)
+            FlateEncoder::ZstdRust(ZstdRustEncoder { input, mut sink }) => {
+                let frame = structured_zstd::encoding::compress_slice_to_vec(
+                    &input,
+                    structured_zstd::encoding::CompressionLevel::Default,
+                );
+                sink.write_all(&frame)
+                    .map_err(CompressionError::ZstdRustError)?;
+                Ok(sink)
             }
         }
     }
@@ -263,6 +277,47 @@ pub fn apply_decompression(
     let mut decoder = method.decoder(reader)?;
     io::copy(&mut decoder, &mut writer)?;
     Ok(())
+}
+
+/// Decodes a whole compressed buffer held in memory.
+pub fn decompress_slice(
+    bytes: &[u8],
+    method: CompressionMethod,
+) -> Result<Vec<u8>, CompressionError> {
+    #[cfg(feature = "zstd-rust")]
+    if method == CompressionMethod::ZstdRust {
+        use structured_zstd::decoding::{FrameContentSize, FrameDecoder, read_frame_content_size};
+
+        fn zstd_rust_error(
+            err: impl Into<Box<dyn std::error::Error + Send + Sync>>,
+        ) -> CompressionError {
+            CompressionError::ZstdRustError(io::Error::other(err))
+        }
+
+        // Frame_Content_Size is optional (RFC 8878 3.1.1.1.2): with it the
+        // frame decodes in one call straight into an exactly sized buffer,
+        // without it only the streaming decoder can tell where the data ends.
+        if let FrameContentSize::Known(size) =
+            read_frame_content_size(bytes).map_err(zstd_rust_error)?
+        {
+            let size = usize::try_from(size).map_err(zstd_rust_error)?;
+            let mut out = vec![0; size];
+            let written = FrameDecoder::new()
+                .decode_all(bytes, &mut out)
+                .map_err(zstd_rust_error)?;
+            if written != size {
+                return Err(CompressionError::ZstdRustError(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    format!("frame declares {size} bytes but holds {written}"),
+                )));
+            }
+            return Ok(out);
+        }
+    }
+
+    let mut out = Vec::new();
+    apply_decompression(bytes, &mut out, method)?;
+    Ok(out)
 }
 
 #[cfg(test)]

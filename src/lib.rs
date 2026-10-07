@@ -28,7 +28,7 @@
 
 /// The low-level macros used by this crate.
 pub use include_flate_codegen as codegen;
-use include_flate_compress::apply_decompression;
+use include_flate_compress::decompress_slice;
 use std::string::FromUtf8Error;
 
 pub use include_flate_compress::CompressionMethod;
@@ -184,18 +184,11 @@ impl IFlate {
 #[doc(hidden)]
 #[allow(private_interfaces)]
 pub fn decode(bytes: &[u8], algo: Option<CompressionMethod>) -> Vec<u8> {
-    use std::io::Cursor;
-
     let algo = algo.unwrap_or_default();
-    let mut source = Cursor::new(bytes);
-    let mut ret = Vec::new();
-
-    match apply_decompression(&mut source, &mut ret, algo) {
-        Ok(_) => {}
+    match decompress_slice(bytes, algo) {
+        Ok(ret) => ret,
         Err(err) => panic!("Compiled `{:?}` buffer was corrupted: {:?}", algo, err),
     }
-
-    ret
 }
 
 #[doc(hidden)]
