@@ -242,6 +242,13 @@ fn frames_with_and_without_content_size_decode_completely() {
     assert_eq!(decode_streaming(&stream), data);
 }
 
+/// RFC 8878 3: compressed data is one or more frames, so an empty input is
+/// not a stream (a fully truncated frame) and must not decode to nothing.
+#[test]
+fn empty_input_is_not_a_zstd_rust_stream() {
+    assert!(decompress_slice(&[], CompressionMethod::ZstdRust).is_err());
+}
+
 /// A skippable frame ahead of the data is skipped by both entry points.
 #[test]
 fn a_leading_skippable_frame_is_skipped() {

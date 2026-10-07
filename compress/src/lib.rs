@@ -64,6 +64,11 @@ fn decode_zstd_rust(bytes: &[u8]) -> io::Result<Vec<u8>> {
         io::Error::new(io::ErrorKind::InvalidData, format!("{err:?}"))
     }
 
+    // RFC 8878 3: compressed data is one or more frames.
+    if bytes.is_empty() {
+        return Err(invalid("empty input holds no Zstandard frame"));
+    }
+
     // Walk the frames first: when every one declares Frame_Content_Size
     // (optional, RFC 8878 3.1.1.1.2), the stream decodes in one call straight
     // into a buffer of exactly their total size.
