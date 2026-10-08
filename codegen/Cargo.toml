@@ -22,4 +22,5 @@ proc-macro-error3 = "3.0.2"
 default = ["deflate", "zstd"]
 deflate = ["include-flate-compress/deflate"]
 zstd = ["include-flate-compress/zstd"]
+zstd-rust = ["include-flate-compress/zstd-rust"]
 no-compression-warnings = []

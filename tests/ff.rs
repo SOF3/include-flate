@@ -26,6 +26,10 @@ flate!(pub static DATA3: [u8] from "assets/ff.dat" with zstd);
 flate!(pub static DATA4: IFlate from "assets/ff.dat" with deflate);
 #[cfg(feature = "zstd")]
 flate!(pub static DATA5: IFlate from "assets/ff.dat" with zstd);
+#[cfg(feature = "zstd-rust")]
+flate!(pub static DATA6: [u8] from "assets/ff.dat" with zstd_rust);
+#[cfg(feature = "zstd-rust")]
+flate!(pub static DATA7: IFlate from "assets/ff.dat" with zstd_rust);
 
 #[test]
 fn test() {
@@ -38,4 +42,8 @@ fn test() {
     verify_iflate("ff.dat", CompressionMethod::Deflate, &DATA4);
     #[cfg(feature = "zstd")]
     verify_iflate("ff.dat", CompressionMethod::Zstd, &DATA5);
+    #[cfg(feature = "zstd-rust")]
+    verify("ff.dat", &DATA6);
+    #[cfg(feature = "zstd-rust")]
+    verify_iflate("ff.dat", CompressionMethod::ZstdRust, &DATA7);
 }
