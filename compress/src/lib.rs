@@ -379,6 +379,12 @@ pub fn apply_decompression(
 }
 
 /// Decodes a whole compressed buffer held in memory.
+///
+/// Meant for data this crate encoded, such as what `flate!` embeds. For
+/// `ZstdRust` the output is allocated up front at the size the frames declare,
+/// bounded only by what their length could hold, so a crafted input can ask
+/// for far more memory than it decodes to; decode untrusted input through
+/// [`CompressionMethod::decoder`] instead.
 pub fn decompress_slice(
     bytes: &[u8],
     method: CompressionMethod,
