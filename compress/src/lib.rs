@@ -30,25 +30,11 @@ use zstd::Decoder as ZstdDecoder;
 #[cfg(feature = "zstd")]
 use zstd::Encoder as ZstdEncoder;
 
-/// Decodes the whole stream on the first read, every frame of it (RFC 8878
-/// 3), and hands the result out from then on.
+// The pure-Rust decoder keeps its state inline (the C one holds a pointer to
+// it), so it is boxed to keep the enum below the size of its other variants.
 #[cfg(feature = "zstd-rust")]
-pub struct ZstdRustDecoder<R: Read> {
-    source: Option<R>,
-    decoded: io::Cursor<Vec<u8>>,
-}
-
-#[cfg(feature = "zstd-rust")]
-impl<R: Read> Read for ZstdRustDecoder<R> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        if let Some(mut source) = self.source.take() {
-            let mut input = Vec::new();
-            source.read_to_end(&mut input)?;
-            self.decoded = io::Cursor::new(decode_zstd_rust(&input)?);
-        }
-        self.decoded.read(buf)
-    }
-}
+type ZstdRustDecoder<R> =
+    Box<structured_zstd::decoding::StreamingDecoder<R, structured_zstd::decoding::FrameDecoder>>;
 
 /// Decodes a Zstandard stream held in memory: every frame, skippable frames
 /// skipped (RFC 8878 3).
@@ -74,14 +60,12 @@ fn decode_zstd_rust(bytes: &[u8]) -> io::Result<Vec<u8>> {
     // into a buffer of exactly their total size.
     let mut total = 0u64;
     let mut all_declared = true;
-    let mut first_data_frame = None;
     let mut offset = 0;
     while offset < bytes.len() {
         let frame = &bytes[offset..];
         let len = find_frame_compressed_size(frame).map_err(invalid)?;
         match read_frame_content_size(frame) {
             Ok(size) => {
-                first_data_frame.get_or_insert(offset);
                 if let FrameContentSize::Known(size) = size {
                     // RFC 8878 3.1.1.2: every block takes at least its 3-byte
                     // header on disk and regenerates at most 128 KiB, so a
@@ -105,9 +89,6 @@ fn decode_zstd_rust(bytes: &[u8]) -> io::Result<Vec<u8>> {
         offset += len;
     }
 
-    let Some(first_data_frame) = first_data_frame else {
-        return Ok(Vec::new());
-    };
     if all_declared {
         let size = usize::try_from(total).map_err(invalid)?;
         let mut out = vec![0; size];
@@ -123,10 +104,8 @@ fn decode_zstd_rust(bytes: &[u8]) -> io::Result<Vec<u8>> {
         return Ok(out);
     }
 
-    // `read_to_end` goes on through the following frames, unlike `read`; it
-    // has to start at a frame that is not skippable.
     let mut out = Vec::new();
-    StreamingDecoder::new(&bytes[first_data_frame..])
+    StreamingDecoder::new(bytes)
         .map_err(invalid)?
         .read_to_end(&mut out)?;
     Ok(out)
@@ -333,10 +312,9 @@ impl<R: Read> FlateDecoder<R> {
                 Ok(FlateDecoder::Zstd(decoder))
             }
             #[cfg(feature = "zstd-rust")]
-            CompressionMethod::ZstdRust => Ok(FlateDecoder::ZstdRust(ZstdRustDecoder {
-                source: Some(read),
-                decoded: io::Cursor::new(Vec::new()),
-            })),
+            CompressionMethod::ZstdRust => structured_zstd::decoding::StreamingDecoder::new(read)
+                .map(|decoder| FlateDecoder::ZstdRust(Box::new(decoder)))
+                .map_err(|err| CompressionError::ZstdRustError(io::Error::other(err))),
         }
     }
 }

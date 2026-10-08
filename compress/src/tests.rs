@@ -247,6 +247,78 @@ fn frames_with_and_without_content_size_decode_completely() {
 #[test]
 fn empty_input_is_not_a_zstd_rust_stream() {
     assert!(decompress_slice(&[], CompressionMethod::ZstdRust).is_err());
+    let mut out = Vec::new();
+    assert!(super::apply_decompression(&[][..], &mut out, CompressionMethod::ZstdRust).is_err());
+}
+
+/// A stream of skippable frames only holds no data: both entry points decode
+/// it to nothing.
+#[test]
+fn skippable_frames_alone_decode_to_nothing() {
+    let mut stream = skippable_frame(b"one");
+    stream.extend_from_slice(&skippable_frame(b"two"));
+
+    assert!(
+        decompress_slice(&stream, CompressionMethod::ZstdRust)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(decode_streaming(&stream).is_empty());
+}
+
+/// The `Read` decoder hands concatenated frames out through reads smaller
+/// than a block, across the frame boundary.
+#[test]
+fn the_zstd_rust_decoder_reads_concatenated_frames_in_small_pieces() {
+    use std::io::Read;
+
+    let data = sample();
+    let (first, second) = data.split_at(data.len() / 3);
+    let mut stream = encode(first, CompressionMethod::ZstdRust);
+    stream.extend_from_slice(&skippable_frame(b"meta"));
+    stream.extend_from_slice(&frame_without_content_size(second));
+
+    let mut decoder = CompressionMethod::ZstdRust.decoder(&stream[..]).unwrap();
+    let mut out = Vec::new();
+    let mut piece = [0u8; 7];
+    loop {
+        let n = decoder.read(&mut piece).unwrap();
+        if n == 0 {
+            break;
+        }
+        out.extend_from_slice(&piece[..n]);
+    }
+    assert_eq!(out, data);
+}
+
+/// The `Read` decoder stays streaming: once a whole frame has arrived from a
+/// source that stays open (here it answers `WouldBlock` after the frame), its
+/// bytes are handed out without waiting for the source to end.
+#[test]
+fn the_zstd_rust_decoder_does_not_wait_for_the_source_to_end() {
+    use std::io::{self, Read};
+
+    struct OpenSource<'a>(&'a [u8]);
+    impl Read for OpenSource<'_> {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            if self.0.is_empty() {
+                return Err(io::ErrorKind::WouldBlock.into());
+            }
+            let n = buf.len().min(self.0.len());
+            buf[..n].copy_from_slice(&self.0[..n]);
+            self.0 = &self.0[n..];
+            Ok(n)
+        }
+    }
+
+    let data = sample();
+    let frame = encode(&data, CompressionMethod::ZstdRust);
+    let mut decoder = CompressionMethod::ZstdRust
+        .decoder(OpenSource(&frame))
+        .unwrap();
+    let mut out = vec![0; data.len()];
+    decoder.read_exact(&mut out).unwrap();
+    assert_eq!(out, data);
 }
 
 /// A skippable frame ahead of the data is skipped by both entry points.
