@@ -29,6 +29,8 @@ jobs:
           - ""
           - "--no-default-features --features deflate"
           - "--no-default-features --features zstd"
+          - "--no-default-features --features zstd-rust"
+          - "--features zstd-rust"
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -52,7 +54,7 @@ jobs:
           default: true
       - name: assert deps don't exist with --no-default-features
         run: |
-          for DEP in libflate zstd; do
+          for DEP in libflate zstd structured-zstd; do
             if cargo tree --no-default-features --invert $DEP; then
               echo "Dependency $DEP should not exist with --no-default-features"
               exit 1
@@ -70,3 +72,11 @@ jobs:
             echo "Feature `zstd` should not create dep on `libflate`"
             exit 1
           fi
+      - name: assert `zstd-rust` feature doesn't create dep on the C zstd bindings
+        run: |
+          for DEP in zstd zstd-sys libflate; do
+            if cargo tree --no-default-features --features zstd-rust --invert $DEP; then
+              echo "Feature `zstd-rust` should not create dep on $DEP"
+              exit 1
+            fi
+          done

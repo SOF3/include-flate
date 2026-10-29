@@ -11,8 +11,12 @@ description = "Compression algorithm provider"
 [dependencies]
 libflate = { workspace = true, optional = true }
 zstd = { workspace = true, optional = true }
+structured-zstd = { workspace = true, optional = true }
 
 [features]
 default = ["deflate", "zstd"]
 deflate = ["dep:libflate"]
 zstd = ["dep:zstd"]
+# Zstandard through the pure-Rust `structured-zstd`, as `CompressionMethod::ZstdRust`.
+# Same frame format as `CompressionMethod::Zstd`.
+zstd-rust = ["dep:structured-zstd"]

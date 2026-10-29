@@ -18,12 +18,14 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 
+#[cfg(all(feature = "zstd", feature = "zstd-rust"))]
+use include_flate_compress::decompress_slice;
 use include_flate_compress::{CompressionMethod, apply_compression, apply_decompression};
 
 pub fn get_file_path<P: AsRef<Path>>(relative_from: Option<&Path>, path: P) -> PathBuf {
     let cargo_manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let default_base_path = Path::new(&cargo_manifest_dir);
-    let base_path = relative_from.unwrap_or_else(|| default_base_path);
+    let base_path = relative_from.unwrap_or(default_base_path);
     base_path.join("assets").join(path)
 }
 
@@ -57,11 +59,30 @@ pub fn verify_compression<P: AsRef<Path>>(name: P, data: &[u8], method: Compress
     assert_ne!(compressed_buffer.as_slice(), decompressed_buffer.as_slice());
 }
 
+/// Encodes the file with `encode` and checks that `decode` restores it exactly.
+#[cfg(all(feature = "zstd", feature = "zstd-rust"))]
+pub fn verify_cross<P: AsRef<Path>>(name: P, encode: CompressionMethod, decode: CompressionMethod) {
+    let original = read_file(&name);
+    let mut compressed = Vec::new();
+    apply_compression(&mut &original[..], &mut compressed, encode).unwrap();
+    let mut decompressed = Vec::new();
+    apply_decompression(&compressed[..], &mut decompressed, decode).unwrap();
+    assert_eq!(decompressed, original);
+    assert_eq!(decompress_slice(&compressed, decode).unwrap(), original);
+}
+
 pub fn verify<P: AsRef<Path>>(name: P, data: &[u8]) {
     #[cfg(feature = "deflate")]
     verify_compression(&name, data, CompressionMethod::Deflate);
     #[cfg(feature = "zstd")]
     verify_compression(&name, data, CompressionMethod::Zstd);
+    #[cfg(feature = "zstd-rust")]
+    verify_compression(&name, data, CompressionMethod::ZstdRust);
+    #[cfg(all(feature = "zstd", feature = "zstd-rust"))]
+    {
+        verify_cross(&name, CompressionMethod::Zstd, CompressionMethod::ZstdRust);
+        verify_cross(&name, CompressionMethod::ZstdRust, CompressionMethod::Zstd);
+    }
     assert_eq!(read_file(&name), data);
 }
 

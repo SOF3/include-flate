@@ -72,6 +72,7 @@ pub fn deflate_utf8_file(ts: TokenStream) -> TokenStream {
 /// flate!(pub static DATA: [u8] from "assets/009f.dat"); // default, DEFLATE
 /// flate!(pub static DATA: [u8] from "assets/009f.dat" with zstd); // Use Zstd for this file spcifically
 /// flate!(pub static DATA: [u8] from "assets/009f.dat" with deflate); // Explicitly use DEFLATE.
+/// flate!(pub static DATA: [u8] from "assets/009f.dat" with zstd_rust); // Zstd without the C library
 /// ```
 struct FlateArgs {
     path: syn::LitStr,
@@ -105,6 +106,17 @@ impl syn::parse::Parse for FlateArgs {
                 }
                 #[cfg(not(feature = "zstd"))]
                 return Err(Error::new(input.span(), "Please enable the `zstd` feature"));
+            } else if lookahead.peek(kw::zstd_rust) {
+                #[cfg(feature = "zstd-rust")]
+                {
+                    input.parse::<kw::zstd_rust>()?;
+                    Some(CompressionMethodTy(CompressionMethod::ZstdRust))
+                }
+                #[cfg(not(feature = "zstd-rust"))]
+                return Err(Error::new(
+                    input.span(),
+                    "Please enable the `zstd-rust` feature",
+                ));
             } else {
                 return Err(lookahead.error());
             }
@@ -117,6 +129,7 @@ impl syn::parse::Parse for FlateArgs {
 mod kw {
     syn::custom_keyword!(deflate);
     syn::custom_keyword!(zstd);
+    syn::custom_keyword!(zstd_rust);
 }
 
 #[derive(Debug, Default)]

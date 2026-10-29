@@ -29,6 +29,10 @@ flate!(pub static DATA3: str from "assets/base64.txt" with zstd);
 flate!(pub static DATA4: IFlate from "assets/base64.txt" with deflate);
 #[cfg(feature = "zstd")]
 flate!(pub static DATA5: IFlate from "assets/base64.txt" with zstd);
+#[cfg(feature = "zstd-rust")]
+flate!(pub static DATA6: str from "assets/base64.txt" with zstd_rust);
+#[cfg(feature = "zstd-rust")]
+flate!(pub static DATA7: IFlate from "assets/base64.txt" with zstd_rust);
 
 #[test]
 fn test() {
@@ -41,4 +45,8 @@ fn test() {
     verify_iflate("base64.txt", CompressionMethod::Deflate, &DATA4);
     #[cfg(feature = "zstd")]
     verify_iflate("base64.txt", CompressionMethod::Zstd, &DATA5);
+    #[cfg(feature = "zstd-rust")]
+    verify_str("base64.txt", &DATA6);
+    #[cfg(feature = "zstd-rust")]
+    verify_iflate("base64.txt", CompressionMethod::ZstdRust, &DATA7);
 }

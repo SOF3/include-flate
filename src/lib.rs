@@ -28,7 +28,7 @@
 
 /// The low-level macros used by this crate.
 pub use include_flate_codegen as codegen;
-use include_flate_compress::apply_decompression;
+use include_flate_compress::decompress_slice;
 use std::string::FromUtf8Error;
 
 pub use include_flate_compress::CompressionMethod;
@@ -61,7 +61,11 @@ pub use include_flate_compress::CompressionMethod;
 /// - If `$type` is `str` but the file is not fully valid UTF-8
 ///
 /// # Algorithm
-/// Compression and decompression use the DEFLATE algorithm from [`libflate`][5].
+/// Compression and decompression use the DEFLATE algorithm from [`libflate`][5] by default.
+/// `with zstd` selects Zstandard through the C library (the `zstd` feature), and
+/// `with zstd_rust` selects Zstandard through the pure-Rust [`structured-zstd`][7]
+/// (the `zstd-rust` feature), which needs no C toolchain. Both produce and read the same
+/// frame format.
 ///
 /// # Examples
 /// Below are some basic examples. For actual compiled examples, see the [`tests`][6] directory.
@@ -88,6 +92,7 @@ pub use include_flate_compress::CompressionMethod;
 ///   [4]: https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
 ///   [5]: https://docs.rs/libflate/0.1.26/libflate/
 ///   [6]: https://github.com/SOF3/include-flate/tree/master/tests
+///   [7]: https://docs.rs/structured-zstd
 #[macro_export]
 macro_rules! flate {
     ($(#[$meta:meta])*
@@ -139,6 +144,9 @@ macro_rules! __parse_algo {
     (zstd) => {
         $crate::CompressionMethod::Zstd
     };
+    (zstd_rust) => {
+        $crate::CompressionMethod::ZstdRust
+    };
     ($other:ident) => {
         compile_error!("Unknown compression algorithm: {}", stringify!($other))
     };
@@ -176,18 +184,11 @@ impl IFlate {
 #[doc(hidden)]
 #[allow(private_interfaces)]
 pub fn decode(bytes: &[u8], algo: Option<CompressionMethod>) -> Vec<u8> {
-    use std::io::Cursor;
-
     let algo = algo.unwrap_or_default();
-    let mut source = Cursor::new(bytes);
-    let mut ret = Vec::new();
-
-    match apply_decompression(&mut source, &mut ret, algo) {
-        Ok(_) => {}
+    match decompress_slice(bytes, algo) {
+        Ok(ret) => ret,
         Err(err) => panic!("Compiled `{:?}` buffer was corrupted: {:?}", algo, err),
     }
-
-    ret
 }
 
 #[doc(hidden)]
